@@ -163,6 +163,7 @@ def analyze(draws):
         "last_special": draws[0]["special"],
         "freq_top": [{"num": n, "count": c} for n, c in freq.most_common(15)],
         "freq_bottom": [{"num": n, "count": c} for n, c in freq.most_common()[-10:]],
+        "freq_all": [{"num": n, "count": freq.get(n, 0)} for n in range(1, 50)],
         "special_top": [{"num": n, "count": c} for n, c in sp_freq.most_common(8)],
         "odd_even": oe.most_common(6),
         "size": sd.most_common(6),
