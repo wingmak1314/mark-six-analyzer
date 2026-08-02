@@ -317,7 +317,7 @@ def predict_api():
     return pred
 
 @app.get("/api/history")
-def history(n: int = Query(20, ge=1, le=100)):
+def history(n: int = Query(100, ge=1, le=5000)):
     draws = load_draws()
     return {"draws": draws[:n]}
 
