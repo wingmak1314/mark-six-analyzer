@@ -1,5 +1,6 @@
-// Service Worker — 離線 cache (PWA)
-const CACHE = 'marksix-v1';
+// Service Worker — 離線 cache (PWA) v2
+// v2: bump cache name 強制舊 SW 失效, 確保用戶攞到新版 bundle
+const CACHE = 'marksix-v2';
 const CORE = [
   './',
   './index.html',
@@ -22,7 +23,7 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 先 network, 失敗 fallback cache (offline)
+// Network-first: 優先攞新版, 失敗先 fallback cache (offline)
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
