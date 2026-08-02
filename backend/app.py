@@ -242,47 +242,47 @@ def _full_predict(stats, last_draw, co, co_exp, gaps, last_nums):
         a, b = pair
         if a not in last_nums and b not in last_nums and a not in pool and b not in pool:
             pool += [a, b]
-        if len(pool) >= 6: break
-    while len(pool) < 8:
+        if len(pool) >= 8: break
+    while len(pool) < 10:
         rest = [n for n in candidates if n not in pool]
         if not rest: break
         best = max(rest, key=lambda n: score(n, pool))
         pool.append(best)
-    # 平衡 (奇偶 2-4, 大小 2-4)
-    for _ in range(25):
+    # 平衡 (奇偶 3-5, 大小 3-5) — 10 個號碼
+    for _ in range(40):
         odd = sum(1 for n in pool if n % 2 == 1)
         small = sum(1 for n in pool if n <= 24)
-        if 2 <= odd <= 4 and 2 <= small <= 4:
+        if 3 <= odd <= 7 and 3 <= small <= 7:
             break
-        if odd > 4:
+        if odd > 7:
             odd_ones = [n for n in pool if n % 2 == 1]
             evens_out = [n for n in candidates if n not in pool and n % 2 == 0]
             if odd_ones and evens_out:
                 pool.remove(odd_ones[0]); pool.append(max(evens_out, key=lambda n: score(n, pool)))
-        elif odd < 2:
+        elif odd < 3:
             even_ones = [n for n in pool if n % 2 == 0]
             odds_out = [n for n in candidates if n not in pool and n % 2 == 1]
             if even_ones and odds_out:
                 pool.remove(even_ones[0]); pool.append(max(odds_out, key=lambda n: score(n, pool)))
-        if 2 <= sum(1 for n in pool if n <= 24) <= 4:
+        if 3 <= sum(1 for n in pool if n <= 24) <= 7:
             continue
-        if small > 4:
+        if small > 7:
             smalls = [n for n in pool if n <= 24]
             bigs_out = [n for n in candidates if n not in pool and n > 24]
             if smalls and bigs_out:
                 pool.remove(smalls[0]); pool.append(max(bigs_out, key=lambda n: score(n, pool)))
-        elif small < 2:
+        elif small < 3:
             bigs = [n for n in pool if n > 24]
             smalls_out = [n for n in candidates if n not in pool and n <= 24]
             if bigs and smalls_out:
                 pool.remove(bigs[0]); pool.append(max(smalls_out, key=lambda n: score(n, pool)))
-    pool = sorted(pool[:8])
+    pool = sorted(pool[:10])
 
     # 解釋引擎
     reasons = []
     for n in pool:
         parts = []
-        parts.append(f"5年出{freq.get(n, base_avg):.0f}次")
+        parts.append(f"25年出{freq.get(n, base_avg):.0f}次")
         if gaps.get(n, 0) >= 10:
             parts.append(f"已{gaps[n]}期未出(冷號)")
         if n == 13:
@@ -292,7 +292,7 @@ def _full_predict(stats, last_draw, co, co_exp, gaps, last_nums):
         if best_co and best_co[1] >= 15:
             parts.append(f"同{best_co[0]}共現{best_co[1]}次")
         reasons.append({"num": n, "why": "、".join(parts)})
-    return {"main8": pool, "reasons": reasons}
+    return {"main10": pool, "reasons": reasons}
 
 # ── API ─────────────────────────────────────────────────
 @app.get("/")
