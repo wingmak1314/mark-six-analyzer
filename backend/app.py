@@ -118,15 +118,42 @@ def analyze(draws):
     for d in full:
         for pair in combinations(sorted(d), 2):
             co[pair] += 1
-    # 每號碼最近幾期冇出 (gap)
+    # 雙號碼 (2-number combo) / 三號碼 (3-number combo)
+    combo2 = Counter()
+    combo3 = Counter()
+    consec2 = Counter()  # 二連號 (consecutive pairs)
+    consec3 = Counter()  # 三連號 (consecutive triples)
+    for d in full:
+        s = sorted(d)
+        for pair in combinations(s, 2):
+            combo2[pair] += 1
+        for tri in combinations(s, 3):
+            combo3[tri] += 1
+        for i in range(5):
+            if s[i+1] == s[i] + 1:
+                consec2[(s[i], s[i+1])] += 1
+        for i in range(4):
+            if s[i+2] == s[i+1] + 1 == s[i] + 2:
+                consec3[(s[i], s[i+1], s[i+2])] += 1
+    # 每號碼最近幾期冇出 (gap) + 天前 (days since)
     gaps = {n: 0 for n in range(1, 50)}
+    last_seen = {n: None for n in range(1, 50)}
     for n in range(1, 50):
         for i, d in enumerate(draws):
             if n in d["main"] or n == d["special"]:
                 gaps[n] = i
+                last_seen[n] = d["date"]
                 break
         else:
             gaps[n] = N
+    # 天前: 由日期計
+    def days_since(date_str):
+        try:
+            d = datetime.strptime(date_str, "%d/%m/%Y")
+            return (datetime.now() - d).days
+        except Exception:
+            return 0
+    days_ago = {n: days_since(last_seen[n]) if last_seen[n] else 9999 for n in range(1, 50)}
     return {
         "total_draws": N,
         "first_draw": draws[-1]["draw"],
@@ -145,6 +172,12 @@ def analyze(draws):
         "repeat_avg": round(sum(reps) / len(reps), 2) if reps else 0,
         "cooccur": [{"pair": f"{a},{b}", "count": c} for (a, b), c in co.most_common(15)],
         "gaps": [{"num": n, "gap": gaps[n]} for n in range(1, 50)],
+        "days_ago": [{"num": n, "days": days_ago[n]} for n in range(1, 50)],
+        "last_seen": [{"num": n, "date": last_seen[n] or "—"} for n in range(1, 50)],
+        "combo2": [{"nums": f"{a},{b}", "count": c} for (a, b), c in combo2.most_common(15)],
+        "combo3": [{"nums": f"{a},{b},{c}", "count": n} for (a, b, c), n in combo3.most_common(15)],
+        "consec2": [{"nums": f"{a},{b}", "count": c} for (a, b), c in consec2.most_common(15)],
+        "consec3": [{"nums": f"{a},{b},{c}", "count": n} for (a, b, c), n in consec3.most_common(15)],
     }
 
 # ── 推薦引擎 ────────────────────────────────────────────
