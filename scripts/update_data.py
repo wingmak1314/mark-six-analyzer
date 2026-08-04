@@ -2,12 +2,13 @@
 """
 GitHub Actions 每日數據更新 — 抓 lottery.hk → merge → 更新 history_full.json
 =============================================================================
-- 由 GitHub Actions 每日 22:00 (香港時間) 自動執行 (零 token)
+- 由 GitHub Actions 自動執行 (零 token): 開獎日(二四六) 21:35 + 每日 21:50
+- 自動偵測新一期 → 下載 → merge → push (唔使人工)
 - 只 commit 有變化先 commit (避免無意義 commit loop)
-- 成功後 GitHub Pages 自動 rebuild (Pages 指向 main branch)
+- NTP 時間同步確保執行時間準確
 """
-import json, os, re, sys, time, urllib.request
-from datetime import datetime
+import json, os, re, socket, struct, sys, time, urllib.request
+from datetime import datetime, timezone, timedelta
 
 # 喺 GitHub Actions 環境: 用 repo 根目錄; 本地測試: 用 mark-six-tracker
 if os.environ.get("GITHUB_WORKSPACE"):
@@ -21,6 +22,24 @@ else:
     CACHE = os.path.join(HOME, "mark-six-tracker", "history_full.json")
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+# ── NTP 時間同步 ──
+def ntp_time(server="time.google.com", timeout=5):
+    """向 NTP server 查詢 UTC 時間 (精確到秒)"""
+    try:
+        req = b'\x1b' + 47 * b'\0'
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(timeout)
+        s.sendto(req, (server, 123))
+        data, _ = s.recvfrom(1024)
+        s.close()
+        if len(data) < 40:
+            return None
+        # NTP 時間戳由第 40 字節開始 (seconds since 1900)
+        ntp_sec = struct.unpack('!I', data[40:44])[0]
+        return datetime.fromtimestamp(ntp_sec - 2208988800, tz=timezone.utc)
+    except Exception:
+        return None
 
 def now_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -48,6 +67,13 @@ def fetch_year(year):
     return draws
 
 def main():
+    # NTP 校時: 確保執行時間準確 (UTC → 香港 UTC+8)
+    nt = ntp_time()
+    if nt:
+        hk = nt + timedelta(hours=8)
+        print(f"🕐 NTP 校時: {nt.strftime('%Y-%m-%d %H:%M:%S')} UTC = 香港 {hk.strftime('%H:%M:%S')}")
+    else:
+        print("⚠️ NTP 校時失敗, 用系統時間")
     ts = now_iso()
     # 1. 讀現有數據
     if os.path.exists(CACHE):
