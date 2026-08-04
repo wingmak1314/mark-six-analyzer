@@ -278,9 +278,46 @@ def _full_predict(stats, last_draw, co, co_exp, gaps, last_nums):
                 pool.remove(bigs[0]); pool.append(max(smalls_out, key=lambda n: score(n, pool)))
     pool = sorted(pool[:10])
 
-    # 解釋引擎
+    # 補多 5 個做 15 字版
+    while len(pool) < 15:
+        rest = [n for n in candidates if n not in pool]
+        if not rest: break
+        best = max(rest, key=lambda n: score(n, pool))
+        pool.append(best)
+    # 15 字平衡 (奇偶 5-10, 大小 5-10)
+    for _ in range(40):
+        odd = sum(1 for n in pool if n % 2 == 1)
+        small = sum(1 for n in pool if n <= 24)
+        if 5 <= odd <= 10 and 5 <= small <= 10:
+            break
+        if odd > 10:
+            odd_ones = [n for n in pool if n % 2 == 1]
+            evens_out = [n for n in candidates if n not in pool and n % 2 == 0]
+            if odd_ones and evens_out:
+                pool.remove(odd_ones[0]); pool.append(max(evens_out, key=lambda n: score(n, pool)))
+        elif odd < 5:
+            even_ones = [n for n in pool if n % 2 == 0]
+            odds_out = [n for n in candidates if n not in pool and n % 2 == 1]
+            if even_ones and odds_out:
+                pool.remove(even_ones[0]); pool.append(max(odds_out, key=lambda n: score(n, pool)))
+        if 5 <= sum(1 for n in pool if n <= 24) <= 10:
+            continue
+        if small > 10:
+            smalls = [n for n in pool if n <= 24]
+            bigs_out = [n for n in candidates if n not in pool and n > 24]
+            if smalls and bigs_out:
+                pool.remove(smalls[0]); pool.append(max(bigs_out, key=lambda n: score(n, pool)))
+        elif small < 5:
+            bigs = [n for n in pool if n > 24]
+            smalls_out = [n for n in candidates if n not in pool and n <= 24]
+            if bigs and smalls_out:
+                pool.remove(bigs[0]); pool.append(max(smalls_out, key=lambda n: score(n, pool)))
+    main10 = sorted(pool[:10])
+    main15 = sorted(pool[:15])
+
+    # 解釋引擎 (15 個)
     reasons = []
-    for n in pool:
+    for n in main15:
         parts = []
         parts.append(f"25年出{freq.get(n, base_avg):.0f}次")
         if gaps.get(n, 0) >= 10:
@@ -288,11 +325,11 @@ def _full_predict(stats, last_draw, co, co_exp, gaps, last_nums):
         if n == 13:
             parts.append("特別號之王")
         # 共現
-        best_co = max(((o, co.get(tuple(sorted((n, o))), 0)) for o in pool if o != n), key=lambda x: x[1], default=None)
+        best_co = max(((o, co.get(tuple(sorted((n, o))), 0)) for o in main15 if o != n), key=lambda x: x[1], default=None)
         if best_co and best_co[1] >= 15:
             parts.append(f"同{best_co[0]}共現{best_co[1]}次")
         reasons.append({"num": n, "why": "、".join(parts)})
-    return {"main10": pool, "reasons": reasons}
+    return {"main10": main10, "main15": main15, "reasons": reasons}
 
 # ── API ─────────────────────────────────────────────────
 @app.get("/")
