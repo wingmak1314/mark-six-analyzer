@@ -44,12 +44,22 @@ def ntp_time(server="time.google.com", timeout=5):
 def now_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def fetch_year(year, timeout=15):
-    """抓指定年份全部期數 (timeout 15秒, GitHub runner 慢就快速失敗)"""
+def fetch_year(year, timeout=15, retries=3):
+    """抓指定年份全部期數 (timeout 15秒, 失敗自動重試)"""
     url = f"https://lottery.hk/liuhecai/jieguo/{year}"
-    req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        html = r.read().decode("utf-8", errors="replace")
+    last_err = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                html = r.read().decode("utf-8", errors="replace")
+            break
+        except Exception as e:
+            last_err = e
+            print(f"    ⚠️ 第{attempt + 1}次抓取失敗: {e}")
+            time.sleep(2 * (attempt + 1))
+    else:
+        raise last_err
     rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.DOTALL)
     draws = {}
     for row in rows:
