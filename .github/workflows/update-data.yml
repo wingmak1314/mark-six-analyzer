@@ -24,6 +24,7 @@ jobs:
           python-version: '3.12'
 
       - name: 抓取 lottery.hk 最新數據
+        timeout-minutes: 5
         run: python scripts/update_data.py
 
       - name: Commit + Push (有更新先 commit)

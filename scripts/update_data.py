@@ -44,11 +44,11 @@ def ntp_time(server="time.google.com", timeout=5):
 def now_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def fetch_year(year):
-    """抓指定年份全部期數"""
+def fetch_year(year, timeout=15):
+    """抓指定年份全部期數 (timeout 15秒, GitHub runner 慢就快速失敗)"""
     url = f"https://lottery.hk/liuhecai/jieguo/{year}"
     req = urllib.request.Request(url, headers=UA)
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         html = r.read().decode("utf-8", errors="replace")
     rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.DOTALL)
     draws = {}
