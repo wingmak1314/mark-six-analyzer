@@ -52,7 +52,8 @@ export function Countdown() {
     target.setUTCHours(21, 30, 0, 0);
     diff = target.getTime() - hkNow.getTime();
   }
-  const h = Math.floor(diff / 3600000);
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
 
@@ -60,7 +61,7 @@ export function Countdown() {
     <div className="countdown">
       <span className="cd-label">⏰ 下次開獎（{nxt.day} {nxt.date}）</span>
       <span className="cd-time">
-        {String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
+        {d > 0 ? `${d}日 ` : ''}{String(h).padStart(2, '0')}:{String(m).padStart(2, '0')}:{String(s).padStart(2, '0')}
       </span>
       {nxt.isToday && <span className="cd-today">今日 21:30 開獎</span>}
     </div>

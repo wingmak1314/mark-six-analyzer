@@ -72,6 +72,18 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
         }
         picked.push(n);
       }
+      // 條件太緊 (排除後 pool 唔夠平衡) → 自動放寬, 用剩餘號碼補滿 6 個
+      if (picked.length < 6) {
+        const rest = pool.filter(n => !picked.includes(n));
+        for (let i = rest.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [rest[i], rest[j]] = [rest[j], rest[i]];
+        }
+        for (const n of rest) {
+          if (picked.length >= 6) break;
+          picked.push(n);
+        }
+      }
       sets.push([...picked].sort((a, b) => a - b));
     }
     setResults(sets);
@@ -123,7 +135,13 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
                 </span>
                 <span className="gen-set-meta">
                   {set.length === 6
-                    ? `${set.filter(n => n % 2 === 1).length}奇${set.filter(n => n % 2 === 0).length}偶 · ${set.filter(n => n <= 24).length}細${set.filter(n => n > 24).length}大`
+                    ? (() => {
+                        const odd = set.filter(n => n % 2 === 1).length;
+                        const small = set.filter(n => n <= 24).length;
+                        const oddOk = oddEven === 'any' || odd === Number(oddEven.split(':')[0]);
+                        const smallOk = bigSmall === 'any' || small === Number(bigSmall.split(':')[0]);
+                        return `${odd}奇${6 - odd}偶 · ${small}細${6 - small}大${(!oddOk || !smallOk) ? '（條件太緊，已自動放寬）' : ''}`;
+                      })()
                     : '⚠️ 條件太緊，無法湊夠 6 個'}
                 </span>
               </div>

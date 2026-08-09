@@ -8,9 +8,10 @@ import type { DashboardData, Draw } from '../lib/analyzer';
 interface Props {
   data: DashboardData;
   history: Draw[];
+  seed?: number;  // 同 AI推薦顯示共用嘅抖動種子 → 命中率對應返而家睇緊嘅組合
 }
 
-export function HitRate({ data, history }: Props) {
+export function HitRate({ data, history, seed }: Props) {
   const [lookback, setLookback] = useState(10);  // 睇返過去幾多期
 
   const result = useMemo(() => {
@@ -26,7 +27,7 @@ export function HitRate({ data, history }: Props) {
         recent_freq: recentFreq(past, 50),  // 用當時嘅近50期, 避免 look-ahead bias
         gaps: makeGaps(past),               // 用當時嘅 gap, 避免 look-ahead bias
       };
-      const pred = predictStatic(pastData, 0);  // 冇 jitter, 純統計
+      const pred = predictStatic(pastData, 12, seed);  // 同顯示一樣 jitter + 同一種子
       const actual = history[i - 1];
       const hitNums = pred.main10.filter(n => actual.main.includes(n));
       rows.push({ draw: actual.draw, main10: pred.main10, hits: hitNums.length, hitNums });
@@ -37,7 +38,7 @@ export function HitRate({ data, history }: Props) {
     // 期望值: 10 個號碼中 6 個 = 10 * 6/49 ≈ 1.22
     const expected = (10 * 6 / 49).toFixed(2);
     return { rows, total, avg, expected };
-  }, [data, history, lookback]);
+  }, [data, history, lookback, seed]);
 
   if (!result) return null;
 

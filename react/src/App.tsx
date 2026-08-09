@@ -177,14 +177,14 @@ function DashboardView({ data, history }: { data: ReturnType<typeof useDashboard
   );
 }
 
-function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data'] }) {
-  const [reroll, setReroll] = useState(0);
+function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data']; reroll: number; onReroll: (n: number) => void }) {
   const [count, setCount] = useState<10 | 15>(10);  // 10 個字 / 15 個字
   // 每次 reroll 用前端引擎 + 隨機抖動重新生成 (API mode 都用 jitter 版)
+  // seed=reroll → 抖動可重現, 命中率 walk-forward 用返同一個 seed 對應顯示
   const gen = useMemo(() => {
     if (!dash) return data;
     // 用 static 引擎 + jitter 生成「次次唔同」版本
-    return predictStatic(dash, 12);
+    return predictStatic(dash, 12, reroll);
   }, [dash, data, reroll]);
   const shown = gen || data;
   // Hooks 必須喺 early return 之前 (Rules of Hooks)
@@ -232,7 +232,7 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
         </div>
       </section>
       <div className="stats-actions" style={{ margin: '-8px auto 8px', justifyContent: 'center' }}>
-        <button className="gen-btn" onClick={() => setReroll(r => r + 1)}>🎲 重新生成（次次唔同）</button>
+        <button className="gen-btn" onClick={() => onReroll(reroll + 1)}>🎲 重新生成（次次唔同）</button>
         <span className="stats-hint">已生成 {reroll + 1} 次</span>
         <div className="dim-tabs" style={{ marginLeft: 8 }}>
           <button className={count === 10 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(10)}>10 個字 ($2,100)</button>
@@ -278,6 +278,7 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
 
 function MainApp() {
   const [tab, setTab] = useState<Tab>('dashboard');
+  const [predictReroll, setPredictReroll] = useState(0);  // AI推薦 reroll seed (命中率共用, 保持一致)
   const dashboard = useDashboard();
   const prediction = usePrediction();
   const history = useHistory();
@@ -376,8 +377,8 @@ function MainApp() {
 
       {tab === 'predict' && (
         <>
-          <PredictView data={prediction.data} dash={data} />
-          <HitRate data={data} history={history.data || []} />
+          <PredictView data={prediction.data} dash={data} reroll={predictReroll} onReroll={setPredictReroll} />
+          <HitRate data={data} history={history.data || []} seed={predictReroll} />
         </>
       )}
 

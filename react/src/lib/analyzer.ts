@@ -296,7 +296,8 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
 
 // ── 推薦引擎 (static mode, 同 backend 邏輯一致) ──
 // jitter: 隨機抖動幅度 (0 = 每次都一樣, >0 = 次次可能唔同)
-export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
+// seedArg: 可選種子 — 傳入就可以重現同一組抖動 (命中率 walk-forward 用嚟對應顯示)
+export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): PredictResult {
   const N = s.total_draws;
   const freq: Record<number, number> = Object.fromEntries(s.freq_top.map(x => [x.num, x.count]));
   const baseAvg = 6 * N / 49;
@@ -308,8 +309,8 @@ export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
   const recentAvg = recentWin * 6 / 49;  // 近50期每號期望出幾多次
   const lastNums = new Set(s.last_numbers.concat([s.last_special]));
   const candidates: number[] = [];
-  // jitter seed: 每 call 一次都唔同 (用時間 seed)
-  let seed = Math.floor(Math.random() * 0x7fffffff);
+  // jitter seed: 有傳 seedArg 就用 (可重現), 否則每次唔同 (用時間 seed)
+  let seed = seedArg ?? Math.floor(Math.random() * 0x7fffffff);
   const rand = () => {
     seed = (seed * 1103515245 + 12345) & 0x7fffffff;
     return seed / 0x7fffffff;

@@ -23,6 +23,7 @@ export function StatsPredict({ data, history }: Props) {
   );
 
   // 回顧實測: 過去 N 期, 每期用當時數據 (唔偷睇未來) 行同一個引擎, 對返實際開獎
+  // ⚠️ 用同而家顯示一樣嘅抖動種子 (seed=reroll) → 命中率對應返你而家睇緊嘅組合
   const hitResult = useMemo(() => {
     if (history.length < 2) return null;
     const rows: { draw: string; nums: number[]; hits: number; hitNums: number[] }[] = [];
@@ -36,7 +37,7 @@ export function StatsPredict({ data, history }: Props) {
         recent_freq: recentFreq(past, 50),  // 用當時嘅近50期, 避免 look-ahead bias
         gaps: makeGaps(past),               // 用當時嘅 gap, 避免 look-ahead bias
       };
-      const pick = statsPick(pastData, { top: 8, jitter: 0 });  // 冇抖動, 純統計
+      const pick = statsPick(pastData, { top: 8, jitter: 1, seed: reroll });  // 同一抖動種子
       const actual = history[i - 1];
       const hitNums = pick.nums.filter(n => actual.main.includes(n));
       rows.push({ draw: actual.draw, nums: pick.nums, hits: hitNums.length, hitNums });
@@ -46,7 +47,7 @@ export function StatsPredict({ data, history }: Props) {
     // 期望值: 8 個號碼 × 6/49 ≈ 0.98
     const expected = (8 * 6 / 49).toFixed(2);
     return { rows, avg, expected };
-  }, [data, history, lookback]);
+  }, [data, history, lookback, reroll]);
 
   return (
     <div className="gen-wrap">
@@ -104,7 +105,7 @@ export function StatsPredict({ data, history }: Props) {
             ))}
           </div>
           <div className="gen-note">
-            💡 <b>點樣計：</b>模擬「喺過去每一期之前用當時數據行同一個統計引擎，再對返實際開獎」。紅色 = 中咗，灰色 = 冇中。
+            💡 <b>點樣計：</b>模擬「喺過去每一期之前用當時數據行同一個統計引擎（用返而家呢套抖動種子），再對返實際開獎」。紅色 = 中咗，灰色 = 冇中。
             <br />⚠️ 六合彩每期獨立，命中率同隨機期望（8×6/49 ≈ 0.98 個）差唔多係正常 — 呢個統計係幫你了解「統計引擎嘅實際表現」，唔代表未來會中。
           </div>
         </Card>
