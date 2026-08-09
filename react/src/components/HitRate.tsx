@@ -14,11 +14,20 @@ interface Props {
 export function HitRate({ data, history, seed }: Props) {
   const [lookback, setLookback] = useState(10);  // 睇返過去幾多期
 
+  // 而家顯示緊嘅推薦 (同 AI推薦 tab hero 一致: 同一數據 + 同一抖動種子)
+  const current = useMemo(() => predictStatic(data, 12, seed).main10, [data, seed]);
+
   const result = useMemo(() => {
     if (history.length < 2) return null;
     const rows: { draw: string; main10: number[]; hits: number; hitNums: number[] }[] = [];
 
-    for (let i = 1; i <= Math.min(lookback, history.length - 1); i++) {
+    // 第一行: 用而家睇緊嗰組直接對最新一期 (同顯示完全一致)
+    const actual0 = history[0];
+    const hitNums0 = current.filter(n => actual0.main.includes(n));
+    rows.push({ draw: actual0.draw, main10: current, hits: hitNums0.length, hitNums: hitNums0 });
+
+    // 其餘行: walk-forward (每期用當時數據 + 同一抖動種子)
+    for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
       // 用第 i 期之前嘅數據做推薦 (walk-forward)
       const past = history.slice(i);  // 排除 i 期 (由最新開始數)
       const pastData: DashboardData = {
@@ -38,7 +47,7 @@ export function HitRate({ data, history, seed }: Props) {
     // 期望值: 10 個號碼中 6 個 = 10 * 6/49 ≈ 1.22
     const expected = (10 * 6 / 49).toFixed(2);
     return { rows, total, avg, expected };
-  }, [data, history, lookback, seed]);
+  }, [data, history, lookback, seed, current]);
 
   if (!result) return null;
 
@@ -73,7 +82,7 @@ export function HitRate({ data, history, seed }: Props) {
         ))}
       </div>
       <div className="gen-note">
-        💡 <b>點樣計：</b>模擬「喺過去每一期之前用當時數據做推薦，再對返實際開獎」。紅色 = 中咗，灰色 = 冇中。
+        💡 <b>點樣計：</b>第一行 = 你而家睇緊嗰組（AI 推薦）直接對最新一期；其餘行 = 模擬「喺過去每一期之前用當時數據做推薦，再對返實際開獎」。紅色 = 中咗，灰色 = 冇中。
         <br />⚠️ 六合彩每期獨立，命中率同隨機期望（10×6/49 ≈ 1.22 個）差唔多係正常 — 呢個統計係幫你了解「推薦組合嘅實際表現」，唔代表未來會中。
       </div>
     </Card>

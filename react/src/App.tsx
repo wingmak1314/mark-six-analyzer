@@ -177,7 +177,7 @@ function DashboardView({ data, history }: { data: ReturnType<typeof useDashboard
   );
 }
 
-function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data']; reroll: number; onReroll: (n: number) => void }) {
+function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data']; reroll: number; onReroll: () => void }) {
   const [count, setCount] = useState<10 | 15>(10);  // 10 個字 / 15 個字
   // 每次 reroll 用前端引擎 + 隨機抖動重新生成 (API mode 都用 jitter 版)
   // seed=reroll → 抖動可重現, 命中率 walk-forward 用返同一個 seed 對應顯示
@@ -232,7 +232,7 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
         </div>
       </section>
       <div className="stats-actions" style={{ margin: '-8px auto 8px', justifyContent: 'center' }}>
-        <button className="gen-btn" onClick={() => onReroll(reroll + 1)}>🎲 重新生成（次次唔同）</button>
+        <button className="gen-btn" onClick={() => onReroll()}>🎲 重新生成（次次唔同）</button>
         <span className="stats-hint">已生成 {reroll + 1} 次</span>
         <div className="dim-tabs" style={{ marginLeft: 8 }}>
           <button className={count === 10 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(10)}>10 個字 ($2,100)</button>
@@ -377,7 +377,7 @@ function MainApp() {
 
       {tab === 'predict' && (
         <>
-          <PredictView data={prediction.data} dash={data} reroll={predictReroll} onReroll={setPredictReroll} />
+          <PredictView data={prediction.data} dash={data} reroll={predictReroll} onReroll={() => setPredictReroll(r => r + 1)} />
           <HitRate data={data} history={history.data || []} seed={predictReroll} />
         </>
       )}
