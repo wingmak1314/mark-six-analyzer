@@ -49,8 +49,8 @@ jobs:
           git config user.name "marksix-bot"
           git config user.email "marksix-bot@users.noreply.github.com"
           if ! git diff --quiet -- assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg; then
-            git pull --rebase origin main
             git add assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg
+            git pull --rebase origin main   # 先 stage 再 pull, 避免 unstaged changes 阻止 rebase
             git commit -m "frontend: auto-build $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
             echo "✅ 前端已自動部署"
