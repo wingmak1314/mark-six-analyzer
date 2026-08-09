@@ -50,8 +50,9 @@ jobs:
           git config user.email "marksix-bot@users.noreply.github.com"
           if ! git diff --quiet -- assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg; then
             git add assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg
-            git pull --rebase origin main   # 先 stage 再 pull, 避免 unstaged changes 阻止 rebase
             git commit -m "frontend: auto-build $(date -u +'%Y-%m-%d %H:%M UTC')"
+            # 先 commit (working tree 乾淨) 再 rebase; 同 data bot 唔會撞檔案 (我哋改 assets, bot 改 history_full.json)
+            git pull --rebase origin main || true
             git push
             echo "✅ 前端已自動部署"
           else
