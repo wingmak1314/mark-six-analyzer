@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-import { predictStatic } from '../lib/analyzer';
+import { predictStatic, recentFreq } from '../lib/analyzer';
 import type { DashboardData, Draw } from '../lib/analyzer';
 
 interface Props {
@@ -20,7 +20,11 @@ export function HitRate({ data, history }: Props) {
     for (let i = 1; i <= Math.min(lookback, history.length - 1); i++) {
       // 用第 i 期之前嘅數據做推薦 (walk-forward)
       const past = history.slice(i);  // 排除 i 期 (由最新開始數)
-      const pastData: DashboardData = { ...data, total_draws: past.length, last_numbers: past[0].main, last_special: past[0].special };
+      const pastData: DashboardData = {
+        ...data, total_draws: past.length,
+        last_numbers: past[0].main, last_special: past[0].special,
+        recent_freq: recentFreq(past, 50),  // 用當時嘅近50期, 避免 look-ahead bias
+      };
       const pred = predictStatic(pastData, 0);  // 冇 jitter, 純統計
       const actual = history[i - 1];
       const hitNums = pred.main10.filter(n => actual.main.includes(n));

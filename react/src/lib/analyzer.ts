@@ -31,6 +31,7 @@ export interface DashboardData {
   combo3?: { nums: string; count: number }[];
   consec2?: { nums: string; count: number }[];
   consec3?: { nums: string; count: number }[];
+  recent_freq?: { num: number; count: number }[];
 }
 
 export interface PredictResult {
@@ -42,6 +43,15 @@ export interface PredictResult {
 }
 
 // ── Static 分析引擎 (GitHub Pages 冇 backend 用) ──
+// 近 N 期主號碼頻率 (動量信號: 熱門號碼近期狀態)
+export function recentFreq(draws: Draw[], window = 50): { num: number; count: number }[] {
+  const f: Record<number, number> = {};
+  for (const d of draws.slice(0, window)) {
+    for (const n of d.main) f[n] = (f[n] || 0) + 1;
+  }
+  return Object.entries(f).map(([num, count]) => ({ num: Number(num), count }));
+}
+
 export function analyzeStatic(draws: Draw[]): DashboardData {
   const N = draws.length;
   const full = draws.map(d => d.main);
@@ -150,6 +160,7 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
     consec3: toList(consec3, 15),
     days_ago: Object.entries(daysAgo).map(([num, days]) => ({ num: Number(num), days })),
     last_seen: Object.entries(lastSeen).map(([num, date]) => ({ num: Number(num), date })),
+    recent_freq: recentFreq(draws, 50),
   };
 }
 
@@ -162,6 +173,9 @@ export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
   const co: Record<string, number> = Object.fromEntries(s.cooccur.map(x => [x.pair, x.count]));
   const coExp = N * 15 / 1176;
   const gapMap: Record<number, number> = Object.fromEntries(s.gaps.map(g => [g.num, g.gap]));
+  const recentMap: Record<number, number> = Object.fromEntries((s.recent_freq || []).map(x => [x.num, x.count]));
+  const recentWin = Math.min(50, N);
+  const recentAvg = recentWin * 6 / 49;  // 近50期每號期望出幾多次
   const lastNums = new Set(s.last_numbers.concat([s.last_special]));
   const candidates: number[] = [];
   // jitter seed: 每 call 一次都唔同 (用時間 seed)
@@ -180,6 +194,10 @@ export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
       const pair = n < o ? `${n},${o}` : `${o},${n}`;
       if (co[pair]) s2 += (co[pair] - coExp) * 3;
     }
+    // 近50期動量: 近期出得多嘅號碼加分 (歷史形態信號)
+    s2 += ((recentMap[n] || 0) - recentAvg) * 0.8;
+    // 連號傾向: 同 pool 內號碼相鄰 → 加分 (歷史 45.8% 開獎含連號, 唔應該避開)
+    if (pool.some(o => Math.abs(o - n) === 1)) s2 += 1.2;
     if (jitter > 0) s2 += jit(n);  // 隨機抖動
     return s2;
   };
@@ -295,6 +313,8 @@ export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
   const main15 = pool.slice(0, 15).sort((a, b) => a - b);
   const reasons = main15.map(n => {
     const parts = [`25年出${Math.round(freq[n] || baseAvg)}次`];
+    const rc = recentMap[n] || 0;
+    if (rc >= 10) parts.push(`近50期出${rc}次(火熱)`);
     if ((gapMap[n] || 0) >= 10) parts.push(`已${gapMap[n]}期未出`);
     if (n === 13) parts.push('特別號之王');
     let bestPair = 0, bestC = 0;

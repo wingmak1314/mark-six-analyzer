@@ -205,6 +205,16 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
           <span>💡 複式{count}字 = {tickets.toLocaleString()}注 = ${cost.toLocaleString()}</span>
           <span>🎯 每注中頭獎機率固定 1/13,983,816（每期獨立，冇方法提高）</span>
         </div>
+        <div className="hero-meta">
+          {(() => {
+            const sorted = [...nums].sort((a, b) => a - b);
+            const odd = nums.filter(n => n % 2 === 1).length;
+            const small = nums.filter(n => n <= 24).length;
+            let cons = 0;
+            for (let i = 0; i < sorted.length - 1; i++) if (sorted[i + 1] === sorted[i] + 1) cons++;
+            return <span>⚖️ 結構：{odd}奇{nums.length - odd}偶 · {small}細{nums.length - small}大 · 連號{cons}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>;
+          })()}
+        </div>
       </section>
       <div className="stats-actions" style={{ margin: '-8px auto 8px', justifyContent: 'center' }}>
         <button className="gen-btn" onClick={() => setReroll(r => r + 1)}>🎲 重新生成（次次唔同）</button>
@@ -306,7 +316,7 @@ function MainApp() {
       )}
 
       {tab === 'statspredict' && (
-        <StatsPredict data={data} />
+        <StatsPredict data={data} history={history.data || []} />
       )}
 
       {tab === 'checker' && (
