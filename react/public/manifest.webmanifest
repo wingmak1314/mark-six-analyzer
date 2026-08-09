@@ -1,0 +1,13 @@
+{
+  "name": "六合彩大數據分析",
+  "short_name": "六合彩分析",
+  "description": "六合彩大數據統計、AI推薦、智能選號",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1f1633",
+  "theme_color": "#1f1633",
+  "icons": [
+    { "src": "pwa-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "pwa-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

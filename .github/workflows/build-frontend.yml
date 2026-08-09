@@ -1,0 +1,59 @@
+name: Frontend Auto-Build & Deploy
+
+# 前端自動 build + deploy:
+# 每次 push react/ 源碼 → 自動 npm build → 更新 repo root 嘅 dist 產物 → Pages 自動上線
+# 全程用 GitHub 內置 GITHUB_TOKEN, 唔使任何 PAT
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'react/**'
+      - '.github/workflows/build-frontend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: react/package-lock.json
+
+      - name: Install + Build
+        working-directory: react
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy dist → repo root (whitelist, 唔郁 history_full.json)
+        run: |
+          rm -rf assets
+          cp -r react/dist/assets ./assets
+          cp react/dist/index.html ./index.html
+          cp react/dist/sw.js react/dist/manifest.webmanifest \
+             react/dist/pwa-192.png react/dist/pwa-512.png \
+             react/dist/favicon.svg react/dist/icons.svg .
+
+      - name: Commit + Push (有變先 commit)
+        run: |
+          git config user.name "marksix-bot"
+          git config user.email "marksix-bot@users.noreply.github.com"
+          if ! git diff --quiet -- assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg; then
+            git pull --rebase origin main
+            git add assets index.html sw.js manifest.webmanifest pwa-192.png pwa-512.png favicon.svg icons.svg
+            git commit -m "frontend: auto-build $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+            echo "✅ 前端已自動部署"
+          else
+            echo "✅ 無變更, 唔使部署"
+          fi
