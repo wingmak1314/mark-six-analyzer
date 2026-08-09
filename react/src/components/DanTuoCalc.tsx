@@ -65,22 +65,40 @@ export function DanTuoCalc({ data, history }: Props) {
     const r = bankers.length;
     const n = trotters.length;
     const need = 6;
+    const slots = need - r;  // 每注拖位數量
     if (r + n < 6 || r === 0) return null;
-    const tickets = comb(n, need - r);
+    const tickets = comb(n, slots);
     const cost = tickets * 10;
 
-    // 真實機率: 膽中 x 個 + 拖中 (target-x) 個 (同一注)
+    // 系統真實機率: P(至少一注中 target 個主號碼)
+    // X = 膽中幾多個, Y = 拖中幾多個 (所有注共用膽)
+    // 一注有 slots 個拖位, 要中 target 就需要中 z = target-x 個拖,
+    // 而 z 可行 iff z ∈ [max(0, slots-(n-y)), min(slots, y)]
     const prob = (target: number) => {
       let p = 0;
       for (let x = 0; x <= Math.min(r, 6); x++) {
-        const tNeed = target - x;
-        if (tNeed < 0 || tNeed > need - r) continue;
-        if (tNeed > 6 - x) continue;
-        // 膽中 x 個
-        const p_x = comb(r, x) * comb(49 - r, 6 - x) / TOTAL;
-        // 拖中 tNeed 個 (同一注, 注內有 6-r 個拖位)
-        const p_t = comb(6 - x, tNeed) * comb(43 - (6 - x), (need - r) - tNeed) / comb(49 - r, need - r);
-        p += p_x * p_t;
+        const z = target - x;
+        if (z < 0 || z > slots) continue;
+        const pX = comb(r, x) * comb(49 - r, 6 - x) / TOTAL;
+        if (pX === 0) continue;
+        for (let y = 0; y <= Math.min(6 - x, n); y++) {
+          const pY = comb(n, y) * comb(49 - r - n, 6 - x - y) / comb(49 - r, 6 - x);
+          if (pY === 0) continue;
+          if (z >= Math.max(0, slots - (n - y)) && z <= Math.min(slots, y)) p += pX * pY;
+        }
+      }
+      return Math.min(p, 1);
+    };
+
+    // 若膽全中 (X = r): 系統中 target 個嘅條件機率
+    const probAll = (target: number) => {
+      const z = target - r;
+      if (z < 0 || z > slots) return 0;
+      let p = 0;
+      for (let y = 0; y <= Math.min(slots, n); y++) {
+        const pY = comb(n, y) * comb(49 - r - n, slots - y) / comb(49 - r, slots);
+        if (pY === 0) continue;
+        if (z >= Math.max(0, slots - (n - y)) && z <= Math.min(slots, y)) p += pY;
       }
       return p;
     };
@@ -88,8 +106,8 @@ export function DanTuoCalc({ data, history }: Props) {
     return {
       r, n, tickets, cost,
       p3: prob(3), p4: prob(4), p5: prob(5), p6: prob(6),
-      // 若果膽全中嘅樂觀機率
-      opt5: comb(n, need - r) * comb(6, 5) * comb(43, 1) / TOTAL,
+      // 若果膽全中 → 中 5 個嘅條件機率 (系統層面, 至少一注)
+      opt5: probAll(5),
     };
   }, [bankers, trotters]);
 
@@ -178,6 +196,7 @@ export function DanTuoCalc({ data, history }: Props) {
           <div className="combo-row"><span>🥉 中 4 個</span><b>{fmt(result.p4)}</b></div>
           <div className="combo-row"><span>💵 中 3 個</span><b>{fmt(result.p3)}</b></div>
           <div className="combo-row dantuo-opt"><span>✨ 若膽全中，中 5 個</span><b>{fmt(result.opt5)}</b></div>
+          <div className="check-note">ℹ️ 機率 = 成個系統（{result.tickets.toLocaleString()} 注）至少一注中，唔係每注。</div>
         </div>
       ) : (
         <div className="check-note">
