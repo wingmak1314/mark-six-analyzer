@@ -11,8 +11,10 @@ function nextDrawTime(): { day: string; date: string; isToday: boolean } {
   // 開獎日: 2 (二), 4 (四), 6 (六)
   const drawDays = [2, 4, 6];
   let offset = 0;
-  // 如果今日係開獎日但已經過咗 21:30, 跳去下一日
-  if (drawDays.includes(today) && hk.getUTCHours() >= 21 && hk.getUTCMinutes() >= 30) offset = 1;
+  // 如果今日係開獎日但已經過咗 21:30 (截飛), 跳去下一日
+  // 用分鐘數比較, 避免 22:00-22:29 窗口錯判 (hours>=21 && minutes>=30 會漏)
+  const nowMin = hk.getUTCHours() * 60 + hk.getUTCMinutes();
+  if (drawDays.includes(today) && nowMin >= 21 * 60 + 30) offset = 1;
   while (!drawDays.includes((today + offset) % 7)) offset++;
   const target = new Date(hk);
   target.setUTCDate(target.getUTCDate() + offset);

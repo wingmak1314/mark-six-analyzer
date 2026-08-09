@@ -203,7 +203,7 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
         </div>
         <div className="hero-meta">
           <span>💡 複式{count}字 = {tickets.toLocaleString()}注 = ${cost.toLocaleString()}</span>
-          <span>🔄 每期開獎後自動更新（數據越多越準）</span>
+          <span>🎯 每注中頭獎機率固定 1/13,983,816（每期獨立，冇方法提高）</span>
         </div>
       </section>
       <div className="stats-actions" style={{ margin: '-8px auto 8px', justifyContent: 'center' }}>
@@ -246,9 +246,6 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
             </div>
           ))}
         </div>
-      </Card>
-      <Card title="📋 最近開獎驗證" icon="📋">
-        <div className="check-note">開獎後自動驗證推薦中獎情況（由 GitHub Actions 每日更新）</div>
       </Card>
     </>
   );
