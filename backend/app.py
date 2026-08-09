@@ -315,9 +315,9 @@ def _full_predict(stats, last_draw, co, co_exp, gaps, last_nums):
     main10 = sorted(pool[:10])
     main15 = sorted(pool[:15])
 
-    # 解釋引擎 (15 個)
+    # 解釋引擎 (15 個) — 跟 pool 優先次序, 頭 3 個先係真正高分做膽
     reasons = []
-    for n in main15:
+    for n in pool[:15]:
         parts = []
         parts.append(f"25年出{freq.get(n, base_avg):.0f}次")
         if gaps.get(n, 0) >= 10:

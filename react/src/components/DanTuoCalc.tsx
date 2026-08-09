@@ -37,15 +37,17 @@ export function DanTuoCalc({ data, history }: Props) {
   const aiPick = (jitter = 0) => {
     const pred = predictStatic(data, jitter);
     const main15 = pred.main15;
+    // reasons 依 AI 優先次序 — 頭幾個就係最高分做膽 (唔係號碼細到大)
+    const top = pred.reasons.slice(0, 5).map(r => r.num);
     let bankers3: number[], trotters: number[];
     if (mode === '5+all') {
       // 5 膽 + 全部 44 拖
-      bankers3 = main15.slice(0, 5);
+      bankers3 = top.slice(0, 5);
       const all = Array.from({ length: 49 }, (_, i) => i + 1);
       trotters = all.filter(n => !bankers3.includes(n));
     } else {
-      bankers3 = main15.slice(0, 3);
-      trotters = main15.slice(3);
+      bankers3 = top.slice(0, 3);
+      trotters = main15.filter(n => !bankers3.includes(n));
       if (mode === '3+15') {
         // 由 freq_all 補 3 個最高頻、未揀過嘅號碼
         const picked = new Set([...bankers3, ...trotters]);
@@ -114,6 +116,9 @@ export function DanTuoCalc({ data, history }: Props) {
   // 命中率: 過去 N 期, 用「當前揀緊嘅膽+拖」對比實際開獎 (同步, 唔重新 AI 揀)
   const hitRate = useMemo(() => {
     if (history.length < 2 || bankers.length === 0 || trotters.length === 0) return null;
+    const slots = 6 - bankers.length;  // 每注拖位數量
+    // 一注最多中 = 膽中 + min(拖位, 拖中) — 中 5+ 需要 >= 5 (任何膽數都啱)
+    const canHit5 = (b: number, t: number) => b + Math.min(slots, t) >= 5;
     const rows: { draw: string; bHits: number; tHits: number; total: number }[] = [];
     for (let i = 1; i <= Math.min(lookback, history.length - 1); i++) {
       const actual = history[i - 1];
@@ -124,9 +129,8 @@ export function DanTuoCalc({ data, history }: Props) {
     }
     const avgB = rows.length ? (rows.reduce((s, r) => s + r.bHits, 0) / rows.length).toFixed(2) : '0';
     const avgT = rows.length ? (rows.reduce((s, r) => s + r.tHits, 0) / rows.length).toFixed(2) : '0';
-    // 中 5 個機會: 膽中 >= 2 且 總中 >= 5 (3膽拖12尾: 膽中2+拖中3 或 膽中3+拖中2)
-    const hit5 = rows.filter(r => (r.bHits >= 2 && r.total >= 5)).length;
-    return { rows, avgB, avgT, hit5 };
+    const hit5 = rows.filter(r => canHit5(r.bHits, r.tHits)).length;
+    return { rows, avgB, avgT, hit5, canHit5 };
   }, [history, lookback, bankers, trotters]);
 
   const fmt = (p: number) => p > 0 ? `1/${Math.round(1 / p).toLocaleString()}` : '—';
@@ -223,8 +227,8 @@ export function DanTuoCalc({ data, history }: Props) {
               <div className="hitrate-row" key={r.draw}>
                 <span className="hist-draw">{r.draw}</span>
                 <span className="hitrate-count">膽中 {r.bHits} · 拖中 {r.tHits} · 共 {r.total}</span>
-                <span className={r.bHits >= 2 && r.total >= 5 ? 'hitrate-good' : 'hitrate-neutral'}>
-                  {r.bHits >= 2 && r.total >= 5 ? '🎯 有望中5' : '—'}
+                <span className={hitRate.canHit5(r.bHits, r.tHits) ? 'hitrate-good' : 'hitrate-neutral'}>
+                  {hitRate.canHit5(r.bHits, r.tHits) ? '🎯 有望中5' : '—'}
                 </span>
               </div>
             ))}

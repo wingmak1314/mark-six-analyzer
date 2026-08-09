@@ -192,11 +192,10 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
   const tickets = count === 15 ? 5005 : 210;   // C(15,6)=5005, C(10,6)=210
   const cost = tickets * 10;
 
-  // AI 膽拖: 前 3 個做膽, 其餘做拖
+  // AI 膽拖: 前 3 個做膽, 其餘做拖 (reasons 依 AI 優先次序, 頭 3 個 = 最高分)
   const [dtBankers, dtTrotters] = useMemo(() => {
     const main = [...nums].sort((a, b) => a - b);
-    // 用 reasons 順序揀 top 3 (分數最高) 做膽
-    const top3 = (shown?.reasons || []).slice(0, 3).map(r => r.num);
+    const top3 = (shown?.reasons?.length ? shown.reasons.slice(0, 3).map(r => r.num) : main.slice(0, 3));
     const bankers = main.filter(n => top3.includes(n));
     const trotters = main.filter(n => !top3.includes(n));
     return [bankers, trotters];
@@ -245,7 +244,7 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
       {dtBankers.length > 0 && dtTickets > 0 && (
         <Card title="🎱 AI 膽拖方案（前 3 高分做膽）" icon="🎱">
           <div className="dantuo-selected">
-            <span className="check-label">🎯 膽（3 個）：</span>
+            <span className="check-label">🎯 膽（{dtBankers.length} 個）：</span>
             <span className="dantuo-chips">{dtBankers.map(n => <Ball key={n} n={n} cls="sp" />)}</span>
           </div>
           <div className="dantuo-selected">
@@ -258,7 +257,7 @@ function PredictView({ data, dash }: { data: ReturnType<typeof usePrediction>['d
             <div className="combo-row"><span>💡 慳咗</span><b>${(cost - dtTickets * 10).toLocaleString()}（vs 複式）</b></div>
           </div>
           <div className="gen-note">
-            💡 膽拖慳好多錢：{count} 個字複式要 ${cost.toLocaleString()}，但 3 膽拖 {dtTrotters.length} 尾只需 ${(dtTickets * 10).toLocaleString()}。代價係「膽要中」先有高獎 — 適合有信心 AI 揀嘅 top 3。
+            💡 膽拖慳好多錢：{count} 個字複式要 ${cost.toLocaleString()}，但 {dtBankers.length} 膽拖 {dtTrotters.length} 尾只需 ${(dtTickets * 10).toLocaleString()}。代價係「膽要中」先有高獎 — 適合有信心 AI 揀嘅 top 3。
           </div>
         </Card>
       )}
@@ -286,7 +285,7 @@ function MainApp() {
   if (dashboard.isLoading) return (
     <div className="loading">
       <div className="spinner" />
-      <div>🔄 載入 3412 期大數據…</div>
+      <div>🔄 載入大數據…</div>
     </div>
   );
   if (dashboard.isError) return <div className="loading">❌ 數據載入失敗</div>;

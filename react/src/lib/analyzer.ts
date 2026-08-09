@@ -441,7 +441,8 @@ export function predictStatic(s: DashboardData, jitter = 0): PredictResult {
   }
   const main10 = pool.slice(0, 10).sort((a, b) => a - b);
   const main15 = pool.slice(0, 15).sort((a, b) => a - b);
-  const reasons = main15.map(n => {
+  // reasons 依 AI 揀號優先次序 (pool 順序, 唔係排序後) — 頭 3 個先係真正「最高分」做膽
+  const reasons = pool.map(n => {
     const parts = [`25年出${Math.round(freq[n] || baseAvg)}次`];
     const rc = recentMap[n] || 0;
     if (rc >= 10) parts.push(`近50期出${rc}次(火熱)`);
