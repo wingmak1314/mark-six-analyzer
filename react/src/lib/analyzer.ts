@@ -52,6 +52,136 @@ export function recentFreq(draws: Draw[], window = 50): { num: number; count: nu
   return Object.entries(f).map(([num, count]) => ({ num: Number(num), count }));
 }
 
+// 每期 gaps (已X期未出) — 由指定 draw list 即時計, walk-forward 避免 look-ahead bias
+export function makeGaps(draws: Draw[]): { num: number; gap: number }[] {
+  const N = draws.length;
+  const out: { num: number; gap: number }[] = [];
+  for (let n = 1; n <= 49; n++) {
+    let gap = 0;
+    for (let i = 0; i < N; i++) {
+      if (draws[i].main.includes(n) || draws[i].special === n) { gap = i; break; }
+    }
+    out.push({ num: n, gap: gap || N });
+  }
+  return out;
+}
+
+// ── 統計學預測引擎 (StatsPredict 共用, display + walk-forward 同一引擎) ──
+// 計分: 頻率 z-score + 卡方殘差 + gap + 共現 + 近50期動量 + 連號修正 + 可選隨機抖動
+export interface StatsPickResult {
+  nums: number[];
+  odd: number;
+  small: number;
+  consec: number;
+  scores: { num: number; score: number; parts: string[] }[];
+  mean: string;
+  std: string;
+}
+export function statsPick(s: DashboardData, opts: { top?: number; jitter?: number; seed?: number } = {}): StatsPickResult {
+  const top = opts.top ?? 8;
+  const useJitter = (opts.jitter ?? 0) > 0;
+  const N = s.total_draws;
+  const freqAll = s.freq_all || s.freq_top;
+  const freqMap = new Map(freqAll.map(x => [x.num, x.count]));
+  const gapMap = new Map(s.gaps.map(g => [g.num, g.gap]));
+  const daysMap = new Map((s.days_ago || []).map(d => [d.num, d.days]));
+  const recentMap = new Map((s.recent_freq || []).map(x => [x.num, x.count]));
+  const recentWin = Math.min(50, N);
+  const recentAvg = recentWin * 6 / 49;
+  const coExp = N * 15 / 1176;
+  const mean = 6 * N / 49;
+  const variance = N * (6 / 49) * (43 / 49) * (43 / 48);
+  const std = Math.sqrt(variance);
+  const lastNums = new Set(s.last_numbers.concat([s.last_special]));
+
+  let seed = (opts.seed ?? 0) * 7919 + 13;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const jitter = (_n: number) => useJitter ? (rand() - 0.5) * 8 : 0;  // ±4分
+
+  const scores: { num: number; score: number; parts: string[] }[] = [];
+  for (let n = 1; n <= 49; n++) {
+    if (lastNums.has(n)) continue;
+    const count = freqMap.get(n) || 0;
+    const gap = gapMap.get(n) ?? N;
+    const days = daysMap.get(n) ?? 0;
+    const rec = recentMap.get(n) || 0;
+    const parts: string[] = [];
+    let score = 0;
+
+    // 1. 頻率 z-score
+    const z = (count - mean) / std;
+    score += z * 1.2;
+    parts.push(`頻率z=${z.toFixed(2)}`);
+
+    // 2. Gap 分析
+    const expGap = 49 / 7;
+    const gapRatio = gap / expGap;
+    score += Math.min(gapRatio, 3) * 0.8;
+    if (gapRatio > 1.5) parts.push(`已${gap}期未出(超額${gapRatio.toFixed(1)}x)`);
+
+    // 3. 天數
+    score += Math.min(days / 60, 1) * 0.5;
+
+    // 4. 共現
+    let bestCo = 0, bestPartner = 0;
+    for (const o of s.cooccur) {
+      const [a, b] = o.pair.split(',').map(Number);
+      if ((a === n || b === n) && o.count > bestCo) {
+        bestCo = o.count;
+        bestPartner = a === n ? b : a;
+      }
+    }
+    score += (bestCo - coExp) * 2;
+    if (bestCo >= 15) parts.push(`同${bestPartner}共現${bestCo}次`);
+
+    // 5. 卡方殘差
+    const chiResid = (count - mean) * (count - mean) / mean;
+    score += Math.sqrt(chiResid) * 0.3;
+
+    // 6. 近50期動量
+    score += (rec - recentAvg) * 0.8;
+    if (rec >= 10) parts.push(`近50期出${rec}次`);
+
+    // 7. 隨機抖動 (可選)
+    const j = jitter(n);
+    score += j;
+    if (useJitter && Math.abs(j) > 3) parts.push(`隨機+${j.toFixed(1)}`);
+
+    scores.push({ num: n, score, parts });
+  }
+
+  scores.sort((a, b) => b.score - a.score);
+  let picked = scores.slice(0, top);
+
+  // 連號修正: 歷史 45.8% 開獎含連號 — 若完全冇連號, 換入一個相鄰號碼
+  const consecPairs = (arr: number[]) => {
+    const s2 = [...arr].sort((a, b) => a - b);
+    let c = 0;
+    for (let i = 0; i < s2.length - 1; i++) if (s2[i + 1] === s2[i] + 1) c++;
+    return c;
+  };
+  if (consecPairs(picked.map(x => x.num)) === 0 && picked.length >= top) {
+    const inPool = new Set(picked.map(x => x.num));
+    const adj = scores.filter(x => !inPool.has(x.num) && picked.some(t => Math.abs(t.num - x.num) === 1));
+    if (adj.length) {
+      adj.sort((a, b) => b.score - a.score);
+      const worst = [...picked].sort((a, b) => a.score - b.score)[0];
+      picked = picked.filter(x => x.num !== worst.num);
+      picked.push(adj[0]);
+    }
+  }
+
+  const nums = picked.map(x => x.num).sort((a, b) => a - b);
+  const odd = nums.filter(n => n % 2 === 1).length;
+  const small = nums.filter(n => n <= 24).length;
+  const consec = consecPairs(nums);
+
+  return { nums, odd, small, consec, scores: picked, mean: mean.toFixed(1), std: std.toFixed(1) };
+}
+
 export function analyzeStatic(draws: Draw[]): DashboardData {
   const N = draws.length;
   const full = draws.map(d => d.main);
