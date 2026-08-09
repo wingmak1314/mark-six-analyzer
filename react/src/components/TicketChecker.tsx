@@ -5,13 +5,13 @@ import { Card } from './Card';
 import type { Draw } from '../lib/analyzer';
 
 const PRIZES: { match: string; prize: string; key: string }[] = [
-  { match: '6 個主號碼', prize: '頭獎（最低 $800萬，視乎彩池）', key: '頭獎' },
-  { match: '5 + 特別號', prize: '二獎（~$100萬）', key: '二獎' },
-  { match: '5 個主號碼', prize: '三獎（~$8萬）', key: '三獎' },
-  { match: '4 + 特別號', prize: '四獎（~$3,000）', key: '四獎' },
-  { match: '4 個主號碼', prize: '五獎（~$300）', key: '五獎' },
-  { match: '3 + 特別號', prize: '六獎（$40）', key: '六獎' },
-  { match: '3 個主號碼', prize: '七獎（$20）', key: '七獎' },
+  { match: '6 個主號碼', prize: '最低 $800萬，視乎彩池', key: '頭獎' },
+  { match: '5 + 特別號', prize: '約 $100萬', key: '二獎' },
+  { match: '5 個主號碼', prize: '約 $8萬', key: '三獎' },
+  { match: '4 + 特別號', prize: '約 $3,000', key: '四獎' },
+  { match: '4 個主號碼', prize: '約 $300', key: '五獎' },
+  { match: '3 + 特別號', prize: '$40', key: '六獎' },
+  { match: '3 個主號碼', prize: '$20', key: '七獎' },
 ];
 
 export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
