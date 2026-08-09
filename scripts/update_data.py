@@ -44,8 +44,8 @@ def ntp_time(server="time.google.com", timeout=5):
 def now_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def fetch_year(year, timeout=15, retries=3):
-    """抓指定年份全部期數 (timeout 15秒, 失敗自動重試)"""
+def fetch_year(year, timeout=20, retries=3):
+    """抓指定年份全部期數 (timeout 20秒, 失敗自動重試)"""
     url = f"https://lottery.hk/liuhecai/jieguo/{year}"
     last_err = None
     for attempt in range(retries):
@@ -76,6 +76,53 @@ def fetch_year(year, timeout=15, retries=3):
                 draws[draw_no] = {"draw": draw_no, "date": date, "main": main, "special": sp}
     return draws
 
+# ── HKJC 官方 GraphQL API (fallback) ──
+# lottery.hk 由國外 (GitHub runner) 連線唔穩定, 實測會 timeout
+# HKJC 官方 API (info.cld.hkjc.com) 全球 reachable, 官方源頭, JSON
+def fetch_hkjc_recent(timeout=20, retries=2):
+    """HKJC 官方 GraphQL API — 最新 10 期 (已開獎先有 drawResult)"""
+    q = """fragment lotteryDrawsFragment on LotteryDraw {
+  id year no openDate closeDate drawDate status snowballCode snowballName_en snowballName_ch
+  lotteryPool { sell status totalInvestment jackpot unitBet estimatedPrize derivedFirstPrizeDiv lotteryPrizes { type winningUnit dividend } }
+  drawResult { drawnNo xDrawnNo }
+}
+query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $drawType: LotteryDrawType) {
+  lotteryDraws(lastNDraw: $lastNDraw, startDate: $startDate, endDate: $endDate, drawType: $drawType) {
+    ...lotteryDrawsFragment
+  }
+}"""
+    body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": 10}, "query": q}).encode()
+    last_err = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request("https://info.cld.hkjc.com/graphql/base/", data=body, headers={
+                "Content-Type": "application/json", "User-Agent": UA["User-Agent"], "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                raw = r.read()
+            if raw[:2] == b"\x1f\x8b":
+                import gzip
+                raw = gzip.decompress(raw)
+            data = json.loads(raw.decode("utf-8"))
+            draws = {}
+            for x in (data.get("data") or {}).get("lotteryDraws") or []:
+                dr = x.get("drawResult") or {}
+                nos = dr.get("drawnNo") or []
+                sp = dr.get("xDrawnNo")
+                if len(nos) == 6 and sp and all(1 <= n <= 49 for n in list(nos) + [sp]):
+                    dd = (x.get("drawDate") or "")[:10].split("-")
+                    date = f"{dd[2]}/{dd[1]}/{dd[0]}" if len(dd) == 3 else ""
+                    dn = f"{int(x['year']) % 100:02d}/{int(x['no']):03d}"
+                    draws[dn] = {"draw": dn, "date": date, "main": [int(n) for n in nos], "special": int(sp)}
+            if draws:
+                return draws
+            last_err = "未揾到已開獎 drawResult"
+        except Exception as e:
+            last_err = e
+            time.sleep(2)
+    if isinstance(last_err, Exception):
+        raise last_err
+    raise Exception(str(last_err))
+
 def main():
     # NTP 校時: 確保執行時間準確 (UTC → 香港 UTC+8)
     nt = ntp_time()
@@ -96,17 +143,29 @@ def main():
     # 2. 抓今年 + 上年 (防跨年)
     today_year = datetime.now().year
     new_draws = {}
+    years_ok = 0
     for y in [today_year, today_year - 1]:
         try:
             ds = fetch_year(y)
             new_draws.update(ds)
+            years_ok += 1
             print(f"  ✓ 抓 {y}: {len(ds)} 期")
         except Exception as e:
             print(f"  ✗ {y}: {e}")
         time.sleep(1)
 
+    # 2b. 有年份抓取失敗 (lottery.hk 國外連線唔穩定) → HKJC 官方 API 補位
+    if years_ok < 2:
+        try:
+            hk = fetch_hkjc_recent()
+            if hk:
+                print(f"  ✓ HKJC 官方 API fallback: {len(hk)} 期 (最新 {sorted(hk)[-1]})")
+                new_draws.update(hk)
+        except Exception as e:
+            print(f"  ✗ HKJC 官方 API: {e}")
+
     if not new_draws:
-        print("❌ 網站抓取失敗")
+        print("❌ 兩個數據源都抓取失敗")
         sys.exit(1)
 
     # 3. Merge + 排序 (最新在前)
