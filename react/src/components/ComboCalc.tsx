@@ -25,9 +25,13 @@ export function ComboCalc() {
     const k = selected.length;
     const tickets = comb(k, 6);
     const cost = tickets * PRICE;
-    // 中獎機率: 揀中 6 個
-    const jackpot = tickets / 13983816;
-    return { k, tickets, cost, jackpot };
+    const T = 13983816;
+    // 中獎機率 (系統層面): 開出 6 個入面有幾多個喺你揀嘅 k 個入面
+    const jackpot = tickets / T;
+    const p5 = (comb(k, 5) * (49 - k) + comb(k, 6)) / T;             // ≥5 個 (三獎或以上)
+    const p4 = (comb(k, 4) * comb(49 - k, 2) + comb(k, 5) * (49 - k) + comb(k, 6)) / T;  // ≥4 個 (五獎或以上)
+    const p3 = (comb(k, 3) * comb(49 - k, 3) + comb(k, 4) * comb(49 - k, 2) + comb(k, 5) * (49 - k) + comb(k, 6)) / T;  // ≥3 個 (七獎或以上)
+    return { k, tickets, cost, jackpot, p5, p4, p3 };
   }, [selected]);
 
   return (
@@ -51,8 +55,10 @@ export function ComboCalc() {
         <div className="combo-result">
           <div className="combo-row"><span>📝 複式 {result.k} 個字</span><b>{result.tickets.toLocaleString()} 注</b></div>
           <div className="combo-row"><span>💰 成本</span><b>${result.cost.toLocaleString()}</b></div>
-          <div className="combo-row"><span>🎯 頭獎機率</span><b>1 / {Math.round(1 / result.jackpot).toLocaleString()}</b></div>
-          <div className="combo-row"><span>⚖️ 中 3+ 個字機率</span><b>{(100 * (comb(result.k, 3) * comb(49 - result.k, 3) + comb(result.k, 4) * comb(49 - result.k, 2) + comb(result.k, 5) * (49 - result.k) + comb(result.k, 6)) / comb(49, 6)).toFixed(2)}%</b></div>
+          <div className="combo-row"><span>🎯 頭獎機率（中6）</span><b>1 / {Math.round(1 / result.jackpot).toLocaleString()}</b></div>
+          <div className="combo-row"><span>🥈 中 5+ 個字</span><b>1 / {Math.round(1 / result.p5).toLocaleString()}</b></div>
+          <div className="combo-row"><span>🥉 中 4+ 個字</span><b>1 / {Math.round(1 / result.p4).toLocaleString()}</b></div>
+          <div className="combo-row"><span>⚖️ 中 3+ 個字機率</span><b>{(100 * result.p3).toFixed(2)}%</b></div>
         </div>
       )}
       {result.k < 6 && <div className="check-note">仲要揀多 {6 - result.k} 個號碼先計到（最少 6 個先係一注）</div>}

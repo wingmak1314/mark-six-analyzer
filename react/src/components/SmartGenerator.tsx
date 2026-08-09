@@ -2,12 +2,14 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
+import type { Draw } from '../lib/analyzer';
 
 interface GeneratorProps {
   lastNumbers?: number[]; // 最新一期號碼 (排除用)
+  history?: Draw[];       // 完整歷史 (排除過去 N 期用)
 }
 
-export function SmartGenerator({ lastNumbers }: GeneratorProps) {
+export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
   const [excludeLast, setExcludeLast] = useState(true);   // 排除過去N期
   const [excludeWeeks, setExcludeWeeks] = useState(10);   // 排除幾多期
   const [oddEven, setOddEven] = useState<'3:3' | '2:4' | 'any'>('3:3');  // 單雙比例
@@ -15,12 +17,18 @@ export function SmartGenerator({ lastNumbers }: GeneratorProps) {
   const [count, setCount] = useState(5);  // 生成幾多組
   const [results, setResults] = useState<number[][]>([]);
 
-  // 過去N期開過嘅號碼 (排除池)
+  // 過去 N 期開過嘅號碼 (排除池) — 主號碼 + 特別號都計
   const recentNums = useMemo(() => {
-    if (!excludeLast || !lastNumbers) return new Set<number>();
-    // 呢度用 lastNumbers 代表最新一期; 完整排除池由父組件傳
-    return new Set(lastNumbers);
-  }, [excludeLast, lastNumbers]);
+    if (!excludeLast) return new Set<number>();
+    const src = history && history.length > 0 ? history : (lastNumbers ? [{ main: lastNumbers, special: 0 } as Draw] : []);
+    const n = Math.min(Math.max(1, excludeWeeks), src.length);
+    const s = new Set<number>();
+    for (let i = 0; i < n; i++) {
+      for (const m of src[i].main) s.add(m);
+      if (src[i].special) s.add(src[i].special);
+    }
+    return s;
+  }, [excludeLast, excludeWeeks, history, lastNumbers]);
 
   const generate = () => {
     const sets: number[][] = [];

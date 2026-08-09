@@ -7,6 +7,7 @@ export function HistoryTable({ draws }: { draws: Draw[] }) {
   const [year, setYear] = useState('all');
   const [month, setMonth] = useState('all');
   const [drawNo, setDrawNo] = useState('');
+  const [dateQ, setDateQ] = useState('');
   const [showAll, setShowAll] = useState(false);
 
   // 年份/月份清單
@@ -33,8 +34,12 @@ export function HistoryTable({ draws }: { draws: Draw[] }) {
         return d.draw.toLowerCase().includes(q) || no.toLowerCase().includes(q) || no.replace(/^0+/, '').includes(q);
       });
     }
+    if (dateQ.trim()) {
+      const q = dateQ.trim();
+      list = list.filter(d => d.date.includes(q) || d.date.replace(/^0/, '').includes(q) || d.date.split('/')[1].includes(q));
+    }
     return list;
-  }, [draws, year, month, drawNo]);
+  }, [draws, year, month, drawNo, dateQ]);
 
   const visible = showAll ? filtered : filtered.slice(0, 100);
   const total = draws.length;
@@ -57,24 +62,37 @@ export function HistoryTable({ draws }: { draws: Draw[] }) {
           value={drawNo}
           onChange={e => setDrawNo(e.target.value)}
         />
+        <input
+          type="text"
+          placeholder="日期搜尋 (例如: 08/08 / 8/8)"
+          value={dateQ}
+          onChange={e => setDateQ(e.target.value)}
+          className="date-search"
+        />
         <span className="filter-count">
-          {year !== 'all' || month !== 'all' || drawNo ? `搵到 ${filtered.length} 期` : `共 ${total} 期`}
+          {year !== 'all' || month !== 'all' || drawNo || dateQ ? `搵到 ${filtered.length} 期` : `共 ${total} 期`}
         </span>
       </div>
 
       {/* 結果表 */}
       <div className="history-table">
-        {visible.map(d => (
-          <div className="hist-row" key={d.draw}>
-            <span className="hist-draw">{d.draw}</span>
-            <span className="hist-date">{d.date}</span>
-            <span className="hist-balls">
-              {d.main.map(n => <Ball key={n} n={n} cls="red" />)}
-              <span className="plus">+</span>
-              <Ball n={d.special} cls="sp" />
-            </span>
-          </div>
-        ))}
+        {visible.map(d => {
+          const sorted = [...d.main].sort((a, b) => a - b);
+          let cons = 0;
+          for (let i = 0; i < 5; i++) if (sorted[i + 1] === sorted[i] + 1) cons++;
+          return (
+            <div className="hist-row" key={d.draw}>
+              <span className="hist-draw">{d.draw}</span>
+              <span className="hist-date">{d.date}</span>
+              <span className="hist-balls">
+                {d.main.map(n => <Ball key={n} n={n} cls="red" />)}
+                <span className="plus">+</span>
+                <Ball n={d.special} cls="sp" />
+              </span>
+              {cons > 0 && <span className="hist-tag">連號×{cons}</span>}
+            </div>
+          );
+        })}
         {visible.length === 0 && <div className="no-result">冇搵到符合嘅期數</div>}
       </div>
 

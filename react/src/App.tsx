@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDashboard, usePrediction, useHistory } from './hooks/useMarksix';
 import { predictStatic } from './lib/analyzer';
+import type { Draw } from './lib/analyzer';
 import { Ball } from './components/Ball';
 import { Card } from './components/Card';
 import { BarChart } from './components/BarChart';
@@ -121,12 +122,27 @@ function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard
   );
 }
 
-function DashboardView({ data }: { data: ReturnType<typeof useDashboard>['data'] }) {
+function DashboardView({ data, history }: { data: ReturnType<typeof useDashboard>['data']; history: Draw[] }) {
   if (!data) return null;
   return (
     <>
       <Hero data={data} />
       <div className="grid">
+        <Card title="📅 最近 10 期" icon="📅">
+          <div className="recent-list">
+            {history.slice(0, 10).map(d => (
+              <div className="recent-row" key={d.draw}>
+                <span className="hist-draw">{d.draw}</span>
+                <span className="hist-date">{d.date}</span>
+                <span className="hist-balls">
+                  {d.main.map(n => <Ball key={n} n={n} cls="red" />)}
+                  <span className="plus">+</span>
+                  <Ball n={d.special} cls="sp" />
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
         <Card title="🔥 最熱號碼" icon="🔥">
           <div className="balls">{data.freq_top.slice(0, 8).map(x => <Ball key={x.num} n={x.num} cls="red" />)}</div>
           <BarChart data={data.freq_top.slice(0, 8).map(x => [String(x.num), x.count])} color="#e63946" />
@@ -301,7 +317,7 @@ function MainApp() {
 
       <Countdown />
 
-      {tab === 'dashboard' && <DashboardView data={data} />}
+      {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} />}
 
       {tab === 'tongji' && <TongjiView data={data} />}
 
@@ -312,7 +328,7 @@ function MainApp() {
       )}
 
       {tab === 'generator' && (
-        <SmartGenerator lastNumbers={data.last_numbers} />
+        <SmartGenerator lastNumbers={data.last_numbers} history={history.data || []} />
       )}
 
       {tab === 'statspredict' && (

@@ -4,14 +4,14 @@ import { Ball } from './Ball';
 import { Card } from './Card';
 import type { Draw } from '../lib/analyzer';
 
-const PRIZES: { match: string; prize: string }[] = [
-  { match: '6 個主號碼', prize: '頭獎（最低 $800萬，視乎彩池）' },
-  { match: '5 + 特別號', prize: '二獎（~$100萬）' },
-  { match: '5 個主號碼', prize: '三獎（~$8萬）' },
-  { match: '4 + 特別號', prize: '四獎（~$3,000）' },
-  { match: '4 個主號碼', prize: '五獎（~$300）' },
-  { match: '3 + 特別號', prize: '六獎（$40）' },
-  { match: '3 個主號碼', prize: '七獎（$20）' },
+const PRIZES: { match: string; prize: string; key: string }[] = [
+  { match: '6 個主號碼', prize: '頭獎（最低 $800萬，視乎彩池）', key: '頭獎' },
+  { match: '5 + 特別號', prize: '二獎（~$100萬）', key: '二獎' },
+  { match: '5 個主號碼', prize: '三獎（~$8萬）', key: '三獎' },
+  { match: '4 + 特別號', prize: '四獎（~$3,000）', key: '四獎' },
+  { match: '4 個主號碼', prize: '五獎（~$300）', key: '五獎' },
+  { match: '3 + 特別號', prize: '六獎（$40）', key: '六獎' },
+  { match: '3 個主號碼', prize: '七獎（$20）', key: '七獎' },
 ];
 
 export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
@@ -27,22 +27,27 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
       setResult('⚠️ 請輸入有效號碼（1-49）');
       return;
     }
+    if (new Set(myNums).size !== 6) {
+      setResult('⚠️ 6 個主號碼唔可以重複');
+      return;
+    }
     const drawn = new Set(latestDraw.main);
     const hits = myNums.filter(n => drawn.has(n)).length;
+    // 特別號必須對應開出嘅特別號 (你個特別號喺開出主號碼入面唔算中)
     const spHit = mySpecial === latestDraw.special;
-    const spInMain = drawn.has(mySpecial);
 
+    // 獎級 (HKJC 規則): 主號碼 + 特別號 對應
     let tier = '';
     if (hits === 6) tier = '🎉 頭獎！';
-    else if (hits === 5 && spInMain) tier = '🏆 二獎！';
+    else if (hits === 5 && spHit) tier = '🏆 二獎！';
     else if (hits === 5) tier = '🥈 三獎！';
-    else if (hits === 4 && spInMain) tier = '🥉 四獎！';
+    else if (hits === 4 && spHit) tier = '🥉 四獎！';
     else if (hits === 4) tier = '💰 五獎！';
-    else if (hits === 3 && spInMain) tier = '💵 六獎！';
+    else if (hits === 3 && spHit) tier = '💵 六獎！';
     else if (hits === 3) tier = '💷 七獎！';
     else tier = '😢 冇中獎';
 
-    const prize = PRIZES.find(p => tier.includes(p.match.split(' ')[0]) || tier.includes('頭獎') || tier.includes('二獎') || tier.includes('三獎') || tier.includes('四獎') || tier.includes('五獎') || tier.includes('六獎') || tier.includes('七獎'));
+    const prize = PRIZES.find(p => tier.includes(p.key));
     setResult(`中 ${hits} 個主號碼${spHit ? ' + 特別號' : ''} → ${tier}${prize ? `（${prize.prize}）` : ''}`);
   };
 

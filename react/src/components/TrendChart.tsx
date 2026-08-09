@@ -20,6 +20,9 @@ export function TrendChart({ history }: Props) {
   }, [history, num, periods]);
 
   const hits = data.filter(d => d.hit).length;
+  // 平均間距: 幾多期先出一次 (隨機期望 = 49/7 = 7期)
+  const avgGap = hits > 0 ? (periods / hits).toFixed(1) : '—';
+  const expGap = (49 / 7).toFixed(1);
 
   return (
     <Card title="📈 號碼走勢圖" icon="📈">
@@ -37,6 +40,7 @@ export function TrendChart({ history }: Props) {
       </div>
       <div className="trend-summary">
         號碼 <b>{num}</b> 最近 {periods} 期出現 <b className="hitrate-good">{hits}</b> 次
+        {' · '}平均每 <b>{avgGap}</b> 期出一次（隨機期望 {expGap} 期）
       </div>
       <div className="trend-chart">
         {data.map((d, _i) => (
