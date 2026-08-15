@@ -166,7 +166,7 @@ function DashboardView({ data, history }: { data: ReturnType<typeof useDashboard
             })}
           </div>
         </Card>
-        <Card title="🗺️ 號碼熱力圖（25年）" icon="🗺️">
+        <Card title="🗺️ 號碼熱力圖（全部 {data.total_draws} 期）" icon="🗺️">
           <Heatmap data={data.freq_all || data.freq_top} />
         </Card>
         <Card title="📊 區間分佈" icon="📊">

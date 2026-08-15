@@ -53,15 +53,16 @@ export function recentFreq(draws: Draw[], window = 50): { num: number; count: nu
 }
 
 // 每期 gaps (已X期未出) — 由指定 draw list 即時計, walk-forward 避免 look-ahead bias
+// gap = 0 表示最新一期出過; N = 從未出過
 export function makeGaps(draws: Draw[]): { num: number; gap: number }[] {
   const N = draws.length;
   const out: { num: number; gap: number }[] = [];
   for (let n = 1; n <= 49; n++) {
-    let gap = 0;
+    let gap = N;  // 預設 = 從未出過
     for (let i = 0; i < N; i++) {
       if (draws[i].main.includes(n) || draws[i].special === n) { gap = i; break; }
     }
-    out.push({ num: n, gap: gap || N });
+    out.push({ num: n, gap });
   }
   return out;
 }
@@ -223,11 +224,10 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
   const gaps: Record<number, number> = {};
   const lastSeen: Record<number, string> = {};
   for (let n = 1; n <= 49; n++) {
-    gaps[n] = 0;
+    gaps[n] = N;  // 預設 = 從未出過; gap=0 表示最新一期出過 (唔可以用 0 當 falsy)
     for (let i = 0; i < N; i++) {
       if (draws[i].main.includes(n) || draws[i].special === n) { gaps[n] = i; lastSeen[n] = draws[i].date; break; }
     }
-    if (!gaps[n]) gaps[n] = N;
   }
   // 天前 (days since last seen) — 由日期計
   const daysAgo: Record<number, number> = {};
@@ -281,7 +281,16 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
     tail: sorted(tail).slice(0, 10),
     zones: sorted(zones).slice(0, 5),
     consec_pct: Math.round(consec / N * 100),
-    repeat_avg: 0,
+    // 上期重複: 每期同上一期共用幾多個主號碼 (平均)
+    repeat_avg: (() => {
+      if (N < 2) return 0;
+      let sum = 0;
+      for (let i = 0; i < N - 1; i++) {
+        const cur = new Set(draws[i].main);
+        sum += draws[i + 1].main.filter(n => cur.has(n)).length;
+      }
+      return Math.round(sum / (N - 1) * 100) / 100;
+    })(),
     cooccur: sorted(co).slice(0, 15).map(([pair, count]) => ({ pair, count })),
     gaps: Object.entries(gaps).map(([num, gap]) => ({ num: Number(num), gap })),
     combo2: toList(combo2, 15),
