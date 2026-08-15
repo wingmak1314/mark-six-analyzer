@@ -1,52 +1,50 @@
-# 🎱 六合彩數據分析 WebApp
+# 🎱 六合彩大數據分析 WebApp
 
-基於 614 期真實開獎數據（2022-2026）嘅六合彩分析儀表板，完全自動化、零 token 更新。
+基於 **3,417 期真實開獎數據（2002–2026）** 嘅六合彩分析儀表板 — 純 GitHub Pages 托管,零 backend、零 token、每日自動更新。
+
+**Live site:** https://wingmak1314.github.io/mark-six-analyzer/
 
 ## 功能
 
-- 📅 最新開獎顯示
-- 🔥 5年最熱 / 🧊 最冷號碼
-- ⭐ 特別號統計
-- ⚖️ 奇偶 / 📏 大小 / 🔢 尾數分佈
-- 🤝 最強共現號碼對
-- 🎯 自動推薦（複式主炮 8 字 + 副炮 7 字）
-- 📋 每期開獎後自動驗證上次推薦
+- 📊 儀表板: 最新開獎、最熱/最冷號碼、共現對、號碼熱力圖、區間分佈
+- 📈 統計總覽: 主號碼/特別號頻率、最長未出、組合統計、單雙/大細/尾數/區間走勢
+- 📅 開獎記錄: 年份/月份/期號/日期搜尋,25 年全部期數
+- 📈 走勢: 逐號碼最近 N 期出沒節奏
+- 🎲 選號器: 排除過去 N 期、單雙/大細比例限制
+- 📐 統計預測: z-score + 卡方 + gap + 共現 + 近50期動量,附 walk-forward 命中率實測
+- 🎯 AI 推薦: 10/15 字複式 + AI 膽拖方案,附命中率回顧
+- 🧮 計算器: 複式注數/成本/機率、膽拖系統機率
+- 🧾 核對: 輸入飛 → 對比最新一期 → 自動計獎級
+- ⏰ 下次開獎倒數 (二四六 21:30 香港時間)
+- 📱 PWA: 可安裝、離線可用
 
-## 快速開始
+## 架構 (GitHub-only)
+
+```
+react/src/            # React + TypeScript + Vite 源碼
+  ├── lib/analyzer.ts # 分析引擎 (static mode, 前端直接計算)
+  └── components/     # UI 元件
+scripts/update_data.py# 數據抓取 (GitHub Actions 執行)
+history_full.json     # 全部開獎數據 (3417 期)
+assets/ index.html sw.js ...  # CI build 產物 (自動生成, 唔好手改)
+```
+
+- **前端**: GitHub Actions (`build-frontend.yml`) 收到 `react/**` push 後自動 `npm run build` → 產物複製到 repo root → GitHub Pages 上線,全程 `GITHUB_TOKEN`,唔使 PAT。
+- **數據**: GitHub Actions (`update-data.yml`) 每日自動更新 — 開獎日(二四六)21:35 即時 + 每日 21:50/23:30 保險重試,抓 lottery.hk,超時自動 fallback HKJC 官方 GraphQL。
+- **分析**: 全部喺瀏覽器做 (`analyzeStatic`),冇任何 API server,數據唔會離開用戶裝置。
+
+## 本地開發
 
 ```bash
-pip install -r requirements.txt
-python backend/app.py
-# 打開 http://localhost:8100
+cd react
+npm install
+npm run dev        # http://localhost:5173
+npm run build      # 產出 dist/
+npm run lint       # oxlint
 ```
 
-## 數據更新（零 token）
+改完 `react/**` → commit + push → CI 自動 build + deploy (約 2 分鐘)。
 
-`../mark-six-tracker/marksix_auto.py` 每週二、四、六 22:00 自動：
-1. 抓取最新開獎（lottery.hk）
-2. 更新統計
-3. 對比上次推薦 → 記錄結果
-4. 產生新推薦
+## 誠實聲明
 
-WebApp 讀同一份數據檔案，刷新即見最新。
-
-## 檔案結構
-
-```
-mark-six-webapp/
-├── backend/app.py        # FastAPI server (port 8100)
-├── frontend/index.html   # 儀表板
-├── requirements.txt
-└── (讀取 ../mark-six-tracker/ 嘅數據)
-```
-
-## API
-
-| 路徑 | 說明 |
-|---|---|
-| `/` | 儀表板 |
-| `/api/stats` | 5年統計 |
-| `/api/cooccur` | 共現對 |
-| `/api/recommend` | 最新推薦 |
-| `/api/check` | 驗證記錄 |
-| `/api/history?n=20` | 最近開獎 |
+六合彩每期獨立隨機,任何統計方法都唔會增加中獎機率(每注 1/13,983,816)。呢個 app 嘅統計係幫你了解歷史形態同組合結構,唔係預測工具。博彩有風險,切勿沉迷賭博。
