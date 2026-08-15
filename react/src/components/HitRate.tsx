@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-import { predictStatic, recentFreq, makeGaps } from '../lib/analyzer';
+import { predictStatic, analyzeStatic } from '../lib/analyzer';
 import type { DashboardData, Draw } from '../lib/analyzer';
 
 interface Props {
@@ -28,14 +28,9 @@ export function HitRate({ data, history, seed }: Props) {
 
     // 其餘行: walk-forward (每期用當時數據 + 同一抖動種子)
     for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
-      // 用第 i 期之前嘅數據做推薦 (walk-forward)
+      // 用第 i 期之前嘅數據做推薦 (walk-forward) — 完整重算, 唔偷睇未來
       const past = history.slice(i);  // 排除 i 期 (由最新開始數)
-      const pastData: DashboardData = {
-        ...data, total_draws: past.length,
-        last_numbers: past[0].main, last_special: past[0].special,
-        recent_freq: recentFreq(past, 50),  // 用當時嘅近50期, 避免 look-ahead bias
-        gaps: makeGaps(past),               // 用當時嘅 gap, 避免 look-ahead bias
-      };
+      const pastData = analyzeStatic(past);  // freq/共現/動量/gaps 全部由當時 slice 重算
       const pred = predictStatic(pastData, 12, seed);  // 同顯示一樣 jitter + 同一種子
       const actual = history[i - 1];
       const hitNums = pred.main10.filter(n => actual.main.includes(n));

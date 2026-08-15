@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-import { statsPick, recentFreq, makeGaps } from '../lib/analyzer';
+import { statsPick, analyzeStatic } from '../lib/analyzer';
 import type { DashboardData, Draw } from '../lib/analyzer';
 
 interface Props {
@@ -18,7 +18,7 @@ export function StatsPredict({ data, history }: Props) {
 
   // 當前預測: 同一個引擎, 加抖動 (次次唔同)
   const result = useMemo(
-    () => statsPick(data, { top: 8, jitter: 1, seed: reroll }),
+    () => statsPick(data, { top: 8, jitter: 4, seed: reroll }),
     [data, reroll]
   );
 
@@ -31,18 +31,11 @@ export function StatsPredict({ data, history }: Props) {
     const actual0 = history[0];
     const hitNums0 = result.nums.filter(n => actual0.main.includes(n));
     rows.push({ draw: actual0.draw, nums: result.nums, hits: hitNums0.length, hitNums: hitNums0 });
-    // 其餘行: walk-forward (每期用當時數據)
+    // 其餘行: walk-forward (每期用當時數據 — 完整重算, 唔偷睇未來)
     for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
       const past = history.slice(i);
-      const pastData: DashboardData = {
-        ...data,
-        total_draws: past.length,
-        last_numbers: past[0].main,
-        last_special: past[0].special,
-        recent_freq: recentFreq(past, 50),  // 用當時嘅近50期, 避免 look-ahead bias
-        gaps: makeGaps(past),               // 用當時嘅 gap, 避免 look-ahead bias
-      };
-      const pick = statsPick(pastData, { top: 8, jitter: 1, seed: reroll });  // 同一抖動種子
+      const pastData = analyzeStatic(past);  // 所有統計 (freq/gaps/共現/動量) 都係由當時 slice 重算
+      const pick = statsPick(pastData, { top: 8, jitter: 4, seed: reroll });  // 同一抖動種子
       const actual = history[i - 1];
       const hitNums = pick.nums.filter(n => actual.main.includes(n));
       rows.push({ draw: actual.draw, nums: pick.nums, hits: hitNums.length, hitNums });
@@ -117,7 +110,7 @@ export function StatsPredict({ data, history }: Props) {
       )}
 
       <div className="gen-note">
-        💡 <b>方法論：</b>頻率 z-score + 卡方殘差 + gap 超額 + 共現傾向 + <b>近50期動量</b>，再加 <b>±4 分隨機抖動</b> — 所以每次撳「重新生成」都可能出唔同組合，但統計高分嘅號碼仍然大概率入選。
+        💡 <b>方法論：</b>頻率 z-score + 卡方殘差 + gap 超額 + 共現傾向 + <b>近50期動量</b>，再加 <b>±16 分隨機抖動</b> — 所以每次撳「重新生成」都可能出唔同組合，但統計高分嘅號碼仍然大概率入選。
         <br />⚖️ <b>結構平衡：</b>奇偶/大小/連號同歷史分佈對齊（77% 開獎係 2-4 奇、81% 係 2-4 細、46% 含連號）— 就算冇得預測邊個號碼會中，至少組合「形狀」同歷史一致。
         <br />⚠️ <b>重要警告：</b>六合彩每期獨立隨機，任何統計方法都<b>唔會增加中獎機率</b> — 中獎機會同隨機一樣（1/13,983,816）。
       </div>

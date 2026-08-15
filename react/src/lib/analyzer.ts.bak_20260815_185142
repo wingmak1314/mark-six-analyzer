@@ -53,16 +53,15 @@ export function recentFreq(draws: Draw[], window = 50): { num: number; count: nu
 }
 
 // 每期 gaps (已X期未出) — 由指定 draw list 即時計, walk-forward 避免 look-ahead bias
-// gap = 0 表示最新一期出過; N = 從未出過
 export function makeGaps(draws: Draw[]): { num: number; gap: number }[] {
   const N = draws.length;
   const out: { num: number; gap: number }[] = [];
   for (let n = 1; n <= 49; n++) {
-    let gap = N;  // 預設 = 從未出過
+    let gap = 0;
     for (let i = 0; i < N; i++) {
       if (draws[i].main.includes(n) || draws[i].special === n) { gap = i; break; }
     }
-    out.push({ num: n, gap });
+    out.push({ num: n, gap: gap || N });
   }
   return out;
 }
@@ -100,8 +99,7 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
     seed = (seed * 1103515245 + 12345) & 0x7fffffff;
     return seed / 0x7fffffff;
   };
-  const amp = useJitter ? (opts.jitter ?? 1) * 4 : 0;  // 幅度隨 jitter 參數放大 (±jitter×4 分), 唔再係死值 ±4
-  const jitter = (_n: number) => useJitter ? (rand() - 0.5) * 2 * amp : 0;
+  const jitter = (_n: number) => useJitter ? (rand() - 0.5) * 8 : 0;  // ±4分
 
   const scores: { num: number; score: number; parts: string[] }[] = [];
   for (let n = 1; n <= 49; n++) {
@@ -147,8 +145,10 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
     score += (rec - recentAvg) * 0.8;
     if (rec >= 10) parts.push(`近50期出${rec}次`);
 
-    // 7. 隨機抖動 (可選) — 唔列入 reasons (隨機噪音, 唔係統計理由)
-    score += jitter(n);
+    // 7. 隨機抖動 (可選)
+    const j = jitter(n);
+    score += j;
+    if (useJitter && Math.abs(j) > 3) parts.push(`隨機+${j.toFixed(1)}`);
 
     scores.push({ num: n, score, parts });
   }
@@ -223,10 +223,11 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
   const gaps: Record<number, number> = {};
   const lastSeen: Record<number, string> = {};
   for (let n = 1; n <= 49; n++) {
-    gaps[n] = N;  // 預設 = 從未出過; gap=0 表示最新一期出過 (唔可以用 0 當 falsy)
+    gaps[n] = 0;
     for (let i = 0; i < N; i++) {
       if (draws[i].main.includes(n) || draws[i].special === n) { gaps[n] = i; lastSeen[n] = draws[i].date; break; }
     }
+    if (!gaps[n]) gaps[n] = N;
   }
   // 天前 (days since last seen) — 由日期計
   const daysAgo: Record<number, number> = {};
@@ -280,16 +281,7 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
     tail: sorted(tail).slice(0, 10),
     zones: sorted(zones).slice(0, 5),
     consec_pct: Math.round(consec / N * 100),
-    // 上期重複: 每期同上一期共用幾多個主號碼 (平均)
-    repeat_avg: (() => {
-      if (N < 2) return 0;
-      let sum = 0;
-      for (let i = 0; i < N - 1; i++) {
-        const cur = new Set(draws[i].main);
-        sum += draws[i + 1].main.filter(n => cur.has(n)).length;
-      }
-      return Math.round(sum / (N - 1) * 100) / 100;
-    })(),
+    repeat_avg: 0,
     cooccur: sorted(co).slice(0, 15).map(([pair, count]) => ({ pair, count })),
     gaps: Object.entries(gaps).map(([num, gap]) => ({ num: Number(num), gap })),
     combo2: toList(combo2, 15),
@@ -452,7 +444,7 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
   const main15 = pool.slice(0, 15).sort((a, b) => a - b);
   // reasons 依 AI 揀號優先次序 (pool 順序, 唔係排序後) — 頭 3 個先係真正「最高分」做膽
   const reasons = pool.map(n => {
-    const parts = [`全部${s.total_draws}期出${Math.round(freq[n] || baseAvg)}次`];
+    const parts = [`25年出${Math.round(freq[n] || baseAvg)}次`];
     const rc = recentMap[n] || 0;
     if (rc >= 10) parts.push(`近50期出${rc}次(火熱)`);
     if ((gapMap[n] || 0) >= 10) parts.push(`已${gapMap[n]}期未出`);
@@ -467,8 +459,5 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
     return { num: n, why: parts.join('、') };
   });
   const [yy, nn] = s.last_draw.split('/');
-  const n2 = Number(nn) + 1;
-  // 每年最多 ~156 期 (二四六 × 52 週) — 超過即跨年 (26/156 → 27/001)
-  const target_draw = n2 > 156 ? `${Number(yy) + 1}/001` : `${yy}/${String(n2).padStart(3, '0')}`;
-  return { main10, main15, reasons, target_draw, based_on: `${N}期數據` };
+  return { main10, main15, reasons, target_draw: `${yy}/${String(Number(nn) + 1).padStart(3, '0')}`, based_on: `${N}期數據` };
 }

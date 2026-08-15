@@ -24,7 +24,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'history' | 'stats' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo';
+type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -80,7 +80,7 @@ function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard
         rows={overdue}
         renderRow={r => (<>
           <span className="tongji-num"><Ball n={r.num} cls="blue" /></span>
-          <span className="tongji-count">{r.days}日前</span>
+          <span className="tongji-count">{r.days >= 9999 ? '從未出過' : `${r.days}日前`}</span>
           <span className="tongji-date">{seenMap.get(r.num) || '—'}</span>
         </>)} />
 
@@ -242,7 +242,7 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
 
       {/* AI 膽拖方案 */}
       {dtBankers.length > 0 && dtTickets > 0 && (
-        <Card title="🎱 AI 膽拖方案（前 3 高分做膽）" icon="🎱">
+        <Card title="🎱 AI 膽拖方案（AI 優先次序頭 3 個做膽）" icon="🎱">
           <div className="dantuo-selected">
             <span className="check-label">🎯 膽（{dtBankers.length} 個）：</span>
             <span className="dantuo-chips">{dtBankers.map(n => <Ball key={n} n={n} cls="sp" />)}</span>
@@ -319,7 +319,14 @@ function MainApp() {
 
       {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} />}
 
-      {tab === 'tongji' && <TongjiView data={data} />}
+      {tab === 'tongji' && (
+        <>
+          <TongjiView data={data} />
+          <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
+            <TrendAnalysis data={data} />
+          </div>
+        </>
+      )}
 
       {tab === 'history' && (
         <Card title="📅 最近開獎記錄" icon="📅">
@@ -337,18 +344,6 @@ function MainApp() {
 
       {tab === 'checker' && (
         <TicketChecker latestDraw={latestDraw} />
-      )}
-
-      {tab === 'stats' && (
-        <div className="grid">
-          <Card title="⚖️ 奇偶分佈" icon="⚖️"><BarChart data={data.odd_even} /></Card>
-          <Card title="📏 大小分佈" icon="📏"><BarChart data={data.size} color="#4ecdc4" /></Card>
-          <Card title="🔢 尾數分佈" icon="🔢"><BarChart data={data.tail} color="#a855f7" /></Card>
-          <Card title="📊 區間分佈" icon="📊"><BarChart data={data.zones} color="#f97316" /></Card>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <TrendAnalysis data={data} />
-          </div>
-        </div>
       )}
 
       {tab === 'trend' && (
