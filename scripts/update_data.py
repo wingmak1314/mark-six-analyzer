@@ -81,9 +81,8 @@ def fetch_year(year, timeout=20, retries=3):
 # ── HKJC 官方 GraphQL API (fallback) ──
 # lottery.hk 由國外 (GitHub runner) 連線唔穩定, 實測會 timeout
 # HKJC 官方 API (info.cld.hkjc.com) 全球 reachable, 官方源頭, JSON
-def fetch_hkjc_recent(timeout=20, retries=2):
-    """HKJC 官方 GraphQL API — 最新 10 期 (已開獎先有 drawResult)"""
-    q = """fragment lotteryDrawsFragment on LotteryDraw {
+# 共享 GraphQL query (fetch_hkjc_recent + fetch_hkjc_payouts 用同一條)
+HKJC_QUERY = """fragment lotteryDrawsFragment on LotteryDraw {
   id year no openDate closeDate drawDate status snowballCode snowballName_en snowballName_ch
   lotteryPool { sell status totalInvestment jackpot unitBet estimatedPrize derivedFirstPrizeDiv lotteryPrizes { type winningUnit dividend } }
   drawResult { drawnNo xDrawnNo }
@@ -93,6 +92,10 @@ query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $draw
     ...lotteryDrawsFragment
   }
 }"""
+
+def fetch_hkjc_recent(timeout=20, retries=2):
+    """HKJC 官方 GraphQL API — 最新 10 期 (已開獎先有 drawResult)"""
+    q = HKJC_QUERY
     body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": 10}, "query": q}).encode()
     last_err = None
     for attempt in range(retries):
@@ -126,18 +129,10 @@ query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $draw
     raise Exception(str(last_err))
 
 # ── 派彩數據 (HKJC GraphQL) ──
-# 頭獎每注(derivedFirstPrizeDiv) + 二獎每注(lotteryPrizes type=2 dividend) + 總投注額(totalInvestment) + 總獎金基金(Σ dividend×winningUnit/10)
+# 頭獎每注: 有中獎 → lotteryPrizes[type=1].dividend (精確每注); 冇中獎 → derivedFirstPrizeDiv ($800萬 base)
+# 二獎每注 = lotteryPrizes type=2 dividend; 總投注額 = totalInvestment; 總獎金基金 = Σ dividend×winningUnit/10
 def fetch_hkjc_payouts(lastNDraw=30, timeout=20, retries=2):
-    q = """fragment lotteryDrawsFragment on LotteryDraw {
-  id year no openDate closeDate drawDate status snowballCode snowballName_en snowballName_ch
-  lotteryPool { sell status totalInvestment jackpot unitBet estimatedPrize derivedFirstPrizeDiv lotteryPrizes { type winningUnit dividend } }
-  drawResult { drawnNo xDrawnNo }
-}
-query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $drawType: LotteryDrawType) {
-  lotteryDraws(lastNDraw: $lastNDraw, startDate: $startDate, endDate: $endDate, drawType: $drawType) {
-    ...lotteryDrawsFragment
-  }
-}"""
+    q = HKJC_QUERY
     body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": lastNDraw}, "query": q}).encode()
     last_err = None
     for attempt in range(retries):
@@ -152,10 +147,18 @@ query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $draw
             data = json.loads(raw.decode("utf-8"))
             out = []
             for x in (data.get("data") or {}).get("lotteryDraws") or []:
+                dr = x.get("drawResult") or {}
+                if not dr.get("drawnNo"):
+                    continue  # 未開獎/冇結果 → 跳過 (唔收預估派彩, 避免 21:35 cron 早過結果公佈)
                 lp = x.get("lotteryPool") or {}
                 prizes = lp.get("lotteryPrizes") or []
                 pmap = {p.get("type"): p for p in prizes}
-                first = lp.get("derivedFirstPrizeDiv")
+                t1 = pmap.get(1) or {}
+                # 頭獎每注: 有中獎 (winningUnit>0) → type=1 dividend (精確); 否則 derivedFirstPrizeDiv ($800萬 base, 冇人中)
+                if (t1.get("winningUnit") or 0) > 0 and t1.get("dividend") not in (None, ""):
+                    first = int(t1["dividend"])
+                else:
+                    first = lp.get("derivedFirstPrizeDiv")
                 second = (pmap.get(2) or {}).get("dividend")
                 turnover = lp.get("totalInvestment")
                 tf = 0

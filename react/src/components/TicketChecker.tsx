@@ -31,6 +31,10 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
       setResult('⚠️ 6 個主號碼唔可以重複');
       return;
     }
+    if (myNums.includes(mySpecial)) {
+      setResult('⚠️ 特別號唔可以同主號碼重複');
+      return;
+    }
     const drawn = new Set(latestDraw.main);
     const hits = myNums.filter(n => drawn.has(n)).length;
     // 特別號必須對應開出嘅特別號 (你個特別號喺開出主號碼入面唔算中)
