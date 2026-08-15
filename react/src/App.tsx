@@ -15,6 +15,8 @@ import { TrendAnalysis } from './components/TrendAnalysis';
 import { StatsPredict } from './components/StatsPredict';
 import { Countdown } from './components/Countdown';
 import { HitRate } from './components/HitRate';
+import { PayoutTrend } from './components/PayoutTrend';
+import { AiCompare } from './components/AiCompare';
 import { TrendChart } from './components/TrendChart';
 import { ComboCalc } from './components/ComboCalc';
 import { DanTuoCalc } from './components/DanTuoCalc';
@@ -24,7 +26,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo';
+type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo' | 'payout' | 'aivs';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -306,12 +308,14 @@ function MainApp() {
           {nav('tongji', '📈 統計總覽')}
           {nav('history', '📅 開獎記錄')}
           {nav('trend', '📈 走勢')}
+          {nav('payout', '💰 派彩走勢')}
           {nav('generator', '🎲 選號器')}
           {nav('statspredict', '📐 統計預測')}
           {nav('combo', '🧮 計算器')}
           {nav('dantuo', '🎱 膽拖')}
           {nav('checker', '🧾 核對')}
-          {nav('predict', '🎯 AI推薦')}
+          {nav('aivs', '🔮 AI 對比')}
+          {nav('predict', '🎯 AI 推薦')}
         </nav>
       </header>
 
@@ -353,6 +357,10 @@ function MainApp() {
           </div>
         </div>
       )}
+
+      {tab === 'payout' && <PayoutTrend />}
+
+      {tab === 'aivs' && <AiCompare history={history.data || []} />}
 
       {tab === 'combo' && (
         <div className="grid">

@@ -21,6 +21,8 @@ else:
     HOME = os.path.expanduser("~")
     CACHE = os.path.join(HOME, "mark-six-tracker", "history_full.json")
 
+PAYOUTS = os.path.join(os.path.dirname(CACHE), "payouts.json")
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 # ── NTP 時間同步 ──
@@ -123,6 +125,93 @@ query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $draw
         raise last_err
     raise Exception(str(last_err))
 
+# ── 派彩數據 (HKJC GraphQL) ──
+# 頭獎每注(derivedFirstPrizeDiv) + 二獎每注(lotteryPrizes type=2 dividend) + 總投注額(totalInvestment) + 總獎金基金(Σ dividend×winningUnit/10)
+def fetch_hkjc_payouts(lastNDraw=30, timeout=20, retries=2):
+    q = """fragment lotteryDrawsFragment on LotteryDraw {
+  id year no openDate closeDate drawDate status snowballCode snowballName_en snowballName_ch
+  lotteryPool { sell status totalInvestment jackpot unitBet estimatedPrize derivedFirstPrizeDiv lotteryPrizes { type winningUnit dividend } }
+  drawResult { drawnNo xDrawnNo }
+}
+query marksixResult($lastNDraw: Int, $startDate: String, $endDate: String, $drawType: LotteryDrawType) {
+  lotteryDraws(lastNDraw: $lastNDraw, startDate: $startDate, endDate: $endDate, drawType: $drawType) {
+    ...lotteryDrawsFragment
+  }
+}"""
+    body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": lastNDraw}, "query": q}).encode()
+    last_err = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request("https://info.cld.hkjc.com/graphql/base/", data=body, headers={
+                "Content-Type": "application/json", "User-Agent": UA["User-Agent"], "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                raw = r.read()
+            if raw[:2] == b"\x1f\x8b":
+                import gzip
+                raw = gzip.decompress(raw)
+            data = json.loads(raw.decode("utf-8"))
+            out = []
+            for x in (data.get("data") or {}).get("lotteryDraws") or []:
+                lp = x.get("lotteryPool") or {}
+                prizes = lp.get("lotteryPrizes") or []
+                pmap = {p.get("type"): p for p in prizes}
+                first = lp.get("derivedFirstPrizeDiv")
+                second = (pmap.get(2) or {}).get("dividend")
+                turnover = lp.get("totalInvestment")
+                tf = 0
+                for p in prizes:
+                    try:
+                        tf += int(p.get("dividend") or 0) * (p.get("winningUnit") or 0)
+                    except Exception:
+                        pass
+                tf = round(tf / 10)
+                dd = (x.get("drawDate") or "")[:10].split("-")
+                date = f"{dd[2]}/{dd[1]}/{dd[0]}" if len(dd) == 3 else ""
+                if first is None:
+                    continue
+                dn = f"{int(x['year']) % 100:02d}/{int(x['no']):03d}"
+                out.append({"draw": dn, "date": date,
+                            "first": int(first),
+                            "second": int(second) if second not in (None, "") else 0,
+                            "turnover": int(turnover) if turnover else None,
+                            "total_fund": tf})
+            if out:
+                return out
+            last_err = "未揾到派彩數據"
+        except Exception as e:
+            last_err = e
+            time.sleep(2)
+    if isinstance(last_err, Exception):
+        raise last_err
+    raise Exception(str(last_err))
+
+def update_payouts():
+    """增量 append 最新派彩到 payouts.json (只補缺, 唔重複)"""
+    payouts = []
+    if os.path.exists(PAYOUTS):
+        try:
+            payouts = json.load(open(PAYOUTS, encoding="utf-8")).get("payouts", [])
+        except Exception:
+            payouts = []
+    have = {p["draw"] for p in payouts}
+    new = fetch_hkjc_payouts(30)
+    added = 0
+    for p in new:
+        if p["draw"] not in have:
+            payouts.append(p)
+            added += 1
+    if not added:
+        print("✅ 派彩已最新, 冇新數據")
+        return
+    def sk(p):
+        yy, nn = p["draw"].split("/")
+        return (int(yy), int(nn))
+    payouts.sort(key=sk, reverse=True)
+    json.dump({"source": "HKJC GraphQL", "updated": time.strftime("%Y-%m-%d"),
+               "count": len(payouts), "payouts": payouts},
+              open(PAYOUTS, "w", encoding="utf-8"), ensure_ascii=False)
+    print(f"✅ 派彩更新: +{added} 期, 共 {len(payouts)} 期")
+
 def main():
     # NTP 校時: 確保執行時間準確 (UTC → 香港 UTC+8)
     nt = ntp_time()
@@ -139,6 +228,12 @@ def main():
     else:
         existing = []
     print(f"[{ts}] 現有: {len(existing)} 期")
+
+    # 1b. 更新派彩數據 (獨立, 失敗唔阻住號碼更新)
+    try:
+        update_payouts()
+    except Exception as e:
+        print(f"  ⚠️ 派彩更新失敗: {e}")
 
     # 2. 抓今年 + 上年 (防跨年)
     today_year = datetime.now().year
