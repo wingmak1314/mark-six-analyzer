@@ -1,18 +1,27 @@
-// 數據 hooks — GitHub Pages 純 static mode (冇 backend, 唔會試 /api)
+// 數據 hooks — GitHub Pages 純 static mode (冇 backend)
 // 直接讀 history_full.json → 前端分析引擎 (analyzeStatic / predictStatic)
 import { useQuery } from '@tanstack/react-query';
 import { analyzeStatic, predictStatic } from '../lib/analyzer';
 import type { DashboardData, Draw, PredictResult } from '../lib/analyzer';
 
+// module-level memo: 3 個 hooks (dashboard/predict/history) 共用同一份 raw fetch
+// 唔會首頁 load 3 次 history_full.json (300KB)
+let rawCache: Promise<Draw[]> | null = null;
+
 async function loadRaw(): Promise<Draw[]> {
-  const r = await fetch('history_full.json', { cache: 'no-store' });
-  if (!r.ok) throw new Error(`history_full.json ${r.status}`);
-  return await r.json() as Draw[];
+  if (!rawCache) {
+    rawCache = fetch('history_full.json', { cache: 'no-store' })
+      .then(async r => {
+        if (!r.ok) throw new Error(`history_full.json ${r.status}`);
+        return await r.json() as Draw[];
+      })
+      .catch(e => { rawCache = null; throw e; });  // 失敗重置, 等 retry 再試
+  }
+  return rawCache;
 }
 
 async function loadDashboard(): Promise<DashboardData> {
-  const raw = await loadRaw();
-  return analyzeStatic(raw);
+  return analyzeStatic(await loadRaw());
 }
 
 async function loadPrediction(): Promise<PredictResult> {

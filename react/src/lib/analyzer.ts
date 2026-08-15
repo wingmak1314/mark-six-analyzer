@@ -1,4 +1,4 @@
-// 六合彩分析引擎 — 雙 mode 共用 (backend API 或 static 前端)
+// 六合彩分析引擎 — 純前端 static (GitHub Pages, 數據由 history_full.json 讀入)
 export interface Draw {
   draw: string;
   date: string;
@@ -42,7 +42,7 @@ export interface PredictResult {
   based_on: string;
 }
 
-// ── Static 分析引擎 (GitHub Pages 冇 backend 用) ──
+// ── 分析引擎 (純前端計算) ──
 // 近 N 期主號碼頻率 (動量信號: 熱門號碼近期狀態)
 export function recentFreq(draws: Draw[], window = 50): { num: number; count: number }[] {
   const f: Record<number, number> = {};
@@ -302,7 +302,7 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
   };
 }
 
-// ── 推薦引擎 (static mode, 同 backend 邏輯一致) ──
+// ── 推薦引擎 ──
 // jitter: 隨機抖動幅度 (0 = 每次都一樣, >0 = 次次可能唔同)
 // seedArg: 可選種子 — 傳入就可以重現同一組抖動 (命中率 walk-forward 用嚟對應顯示)
 export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): PredictResult {
