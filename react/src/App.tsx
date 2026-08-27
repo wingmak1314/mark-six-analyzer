@@ -16,10 +16,8 @@ import { StatsPredict } from './components/StatsPredict';
 import { Countdown } from './components/Countdown';
 import { HitRate } from './components/HitRate';
 import { PayoutTrend } from './components/PayoutTrend';
-import { AiCompare } from './components/AiCompare';
 import { TrendChart } from './components/TrendChart';
-import { ComboCalc } from './components/ComboCalc';
-import { DanTuoCalc } from './components/DanTuoCalc';
+import { BetCalc } from './components/BetCalc';
 import { PredictLab } from './components/PredictLab';
 import './App.css';
 
@@ -27,7 +25,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo' | 'payout' | 'aivs' | 'predictlab';
+type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'betcalc' | 'payout' | 'predictlab';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -309,18 +307,16 @@ function MainApp() {
         <div className="logo">🎱 <span>六合彩大數據分析</span></div>
         <nav className="nav">
           {nav('dashboard', '📊 儀表板')}
-          {nav('tongji', '📈 統計總覽')}
+          {nav('tongji', '📋 統計總覽')}
           {nav('history', '📅 開獎記錄')}
           {nav('trend', '📈 走勢')}
           {nav('payout', '💰 派彩走勢')}
-          {nav('generator', '🎲 選號器')}
-          {nav('statspredict', '📐 統計預測')}
-          {nav('combo', '🧮 計算器')}
-          {nav('dantuo', '🎱 膽拖')}
-          {nav('checker', '🧾 核對')}
-          {nav('predictlab', '🧪 預測實驗室')}
-          {nav('aivs', '🔮 AI 對比')}
           {nav('predict', '🎯 AI 推薦')}
+          {nav('statspredict', '📐 統計預測')}
+          {nav('predictlab', '🧪 預測實驗室')}
+          {nav('generator', '🎲 選號器')}
+          {nav('betcalc', '🧮 投注計算')}
+          {nav('checker', '🧾 核對')}
         </nav>
       </header>
 
@@ -328,14 +324,7 @@ function MainApp() {
 
       {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} />}
 
-      {tab === 'tongji' && (
-        <>
-          <TongjiView data={data} />
-          <div style={{ gridColumn: '1 / -1', marginTop: 16 }}>
-            <TrendAnalysis data={data} />
-          </div>
-        </>
-      )}
+      {tab === 'tongji' && <TongjiView data={data} />}
 
       {tab === 'history' && (
         <Card title="📅 最近開獎記錄" icon="📅">
@@ -359,30 +348,19 @@ function MainApp() {
         <div className="grid">
           <div style={{ gridColumn: '1 / -1' }}>
             <TrendChart history={history.data || []} />
+            <div style={{ marginTop: 16 }}>
+              <TrendAnalysis data={data} />
+            </div>
           </div>
         </div>
       )}
 
       {tab === 'payout' && <PayoutTrend />}
 
-      {tab === 'aivs' && <AiCompare history={history.data || []} />}
-
       {tab === 'predictlab' && <PredictLab data={data} history={history.data || []} />}
 
-      {tab === 'combo' && (
-        <div className="grid">
-          <div style={{ gridColumn: '1 / -1' }}>
-            <ComboCalc />
-          </div>
-        </div>
-      )}
-
-      {tab === 'dantuo' && (
-        <div className="grid">
-          <div style={{ gridColumn: '1 / -1' }}>
-            <DanTuoCalc data={data} history={history.data || []} />
-          </div>
-        </div>
+      {tab === 'betcalc' && (
+        <BetCalc data={data} history={history.data || []} />
       )}
 
       {tab === 'predict' && (
