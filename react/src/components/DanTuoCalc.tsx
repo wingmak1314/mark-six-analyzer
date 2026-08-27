@@ -76,13 +76,15 @@ export function DanTuoCalc({ data, history }: Props) {
     // X = 膽中幾多個, Y = 拖中幾多個 (所有注共用膽)
     // 一注有 slots 個拖位, 要中 target 就需要中 z = target-x 個拖,
     // 而 z 可行 iff z ∈ [max(0, slots-(n-y)), min(slots, y)]
+    // ⚠️ x >= target 時全部注都中 → 直接加 pX (唔可以 skip, 5+all 中 4/5 膽就係呢種)
     const prob = (target: number) => {
       let p = 0;
       for (let x = 0; x <= Math.min(r, 6); x++) {
         const z = target - x;
-        if (z < 0 || z > slots) continue;
+        if (z > slots) continue;
         const pX = comb(r, x) * comb(49 - r, 6 - x) / TOTAL;
         if (pX === 0) continue;
+        if (z <= 0) { p += pX; continue; }
         for (let y = 0; y <= Math.min(6 - x, n); y++) {
           const pY = comb(n, y) * comb(49 - r - n, 6 - x - y) / comb(49 - r, 6 - x);
           if (pY === 0) continue;

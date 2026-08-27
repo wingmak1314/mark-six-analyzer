@@ -15,16 +15,16 @@ export function HitRate({ data, history, seed }: Props) {
   const [lookback, setLookback] = useState(10);  // 睇返過去幾多期
 
   // 而家顯示緊嘅推薦 (同 AI推薦 tab hero 一致: 同一數據 + 同一抖動種子)
-  const current = useMemo(() => predictStatic(data, 12, seed).main10, [data, seed]);
+  const current = useMemo(() => predictStatic(data, 12, seed), [data, seed]);
 
   const result = useMemo(() => {
     if (history.length < 2) return null;
-    const rows: { draw: string; main10: number[]; hits: number; hitNums: number[] }[] = [];
+    const rows: { draw: string; main10: number[]; hits: number; hitNums: number[]; spPick: number; spHit: boolean }[] = [];
 
     // 第一行: 用而家睇緊嗰組直接對最新一期 (同顯示完全一致)
     const actual0 = history[0];
-    const hitNums0 = current.filter(n => actual0.main.includes(n));
-    rows.push({ draw: actual0.draw, main10: current, hits: hitNums0.length, hitNums: hitNums0 });
+    const hitNums0 = current.main10.filter(n => actual0.main.includes(n));
+    rows.push({ draw: actual0.draw, main10: current.main10, hits: hitNums0.length, hitNums: hitNums0, spPick: current.special, spHit: current.special === actual0.special });
 
     // 其餘行: walk-forward (每期用當時數據 + 同一抖動種子)
     for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
@@ -34,14 +34,16 @@ export function HitRate({ data, history, seed }: Props) {
       const pred = predictStatic(pastData, 12, seed);  // 同顯示一樣 jitter + 同一種子
       const actual = history[i - 1];
       const hitNums = pred.main10.filter(n => actual.main.includes(n));
-      rows.push({ draw: actual.draw, main10: pred.main10, hits: hitNums.length, hitNums });
+      rows.push({ draw: actual.draw, main10: pred.main10, hits: hitNums.length, hitNums, spPick: pred.special, spHit: pred.special === actual.special });
     }
 
     const total = rows.reduce((s, r) => s + r.hits, 0);
     const avg = rows.length ? (total / rows.length).toFixed(2) : '0';
-    // 期望值: 10 個號碼中 6 個 = 10 * 6/49 ≈ 1.22
+    const spHits = rows.filter(r => r.spHit).length;
+    const spRate = rows.length ? (spHits / rows.length * 100).toFixed(0) : '0';
+    // 期望值: 10 個號碼中 6 個 = 10 * 6/49 ≈ 1.22; 特別號 = 1/49 ≈ 2%
     const expected = (10 * 6 / 49).toFixed(2);
-    return { rows, total, avg, expected };
+    return { rows, total, avg, expected, spHits, spRate };
   }, [data, history, lookback, seed, current]);
 
   if (!result) return null;
@@ -57,6 +59,7 @@ export function HitRate({ data, history, seed }: Props) {
       <div className="hitrate-summary">
         <span>📊 平均每期中 <b>{result.avg}</b> 個主號碼</span>
         <span>🎲 隨機期望：{result.expected} 個</span>
+        <span>⭐ 特別號命中 <b>{result.spHits}/{result.rows.length}</b>（{result.spRate}%，隨機期望 2%）</span>
         <span className={Number(result.avg) > Number(result.expected) ? 'hitrate-good' : 'hitrate-neutral'}>
           {Number(result.avg) > Number(result.expected) ? '📈 比隨機好' : '📉 同隨機差唔多'}
         </span>

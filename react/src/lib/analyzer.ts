@@ -32,14 +32,70 @@ export interface DashboardData {
   consec2?: { nums: string; count: number }[];
   consec3?: { nums: string; count: number }[];
   recent_freq?: { num: number; count: number }[];
+  // 引擎進階信號 (v2.1): 全部共現對 (top 300, 唔再淨係 15 對) + 特別號專用統計
+  cooccur_full?: { pair: string; count: number }[];
+  special_freq_all?: { num: number; count: number }[];
+  special_gaps?: { num: number; gap: number }[];
 }
 
 export interface PredictResult {
   main10: number[];
   main15: number[];
   reasons: { num: number; why: string }[];
+  special: number;
+  special_reason: string;
   target_draw: string;
   based_on: string;
+}
+
+// ── 共用機率數學 (ComboCalc / DanTuoCalc / BudgetPlanner 共用) ──
+export function comb(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  let r = 1;
+  for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
+  return Math.round(r);
+}
+
+export const TOTAL_COMBOS = comb(49, 6);  // 13,983,816
+
+// 膽拖系統機率: r 膽 + n 拖, P(成個系統至少一注中 target 個主號碼)
+// 同 DanTuoCalc 嘅 prob() 一致 — BudgetPlanner 重用, 唔可以兩套數學
+// ⚠️ 陷阱: 當 x >= target (膽中嘅已經夠 target), 全部注都中 → 直接加 pX,
+//    唔可以 skip (z<0 唔代表冇中 — 係中多過 target)
+export function systemProb(r: number, n: number, target: number): number {
+  const slots = 6 - r;
+  if (r < 1 || slots < 1 || r + n < 6) return 0;
+  let p = 0;
+  for (let x = 0; x <= Math.min(r, 6); x++) {
+    const z = target - x;
+    if (z > slots) continue;  // 拖位全用都唔夠 target
+    const pX = comb(r, x) * comb(49 - r, 6 - x) / TOTAL_COMBOS;
+    if (pX === 0) continue;
+    if (z <= 0) { p += pX; continue; }  // 膽已中夠 target, 拖點出都中
+    for (let y = 0; y <= Math.min(6 - x, n); y++) {
+      const pY = comb(n, y) * comb(49 - r - n, 6 - x - y) / comb(49 - r, 6 - x);
+      if (pY === 0) continue;
+      if (z >= Math.max(0, slots - (n - y)) && z <= Math.min(slots, y)) p += pX * pY;
+    }
+  }
+  return Math.min(p, 1);
+}
+
+// 複式 k 個字: P(至少中 target 個主號碼) — 一個系統 = 全部 C(k,6) 注
+export function systemProbFushi(k: number, target: number): number {
+  if (k < 6) return 0;
+  let p = 0;
+  for (let j = target; j <= Math.min(6, k); j++) {
+    p += comb(k, j) * comb(49 - k, 6 - j) / TOTAL_COMBOS;
+  }
+  return Math.min(p, 1);
+}
+
+// 單式一注: P(中 target+ 個主號碼)
+export function singleTicketProb(target: number): number {
+  let p = 0;
+  for (let j = target; j <= 6; j++) p += comb(6, j) * comb(43, 6 - j) / TOTAL_COMBOS;
+  return p;
 }
 
 // ── 分析引擎 (純前端計算) ──
@@ -90,6 +146,16 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   const recentWin = Math.min(50, N);
   const recentAvg = recentWin * 6 / 49;
   const coExp = N * 15 / 1176;
+  // 用完整共現表 (top 300) 計分, 唔再淨係 top 15 — 訊號先有分辨力
+  const coList = s.cooccur_full || s.cooccur;
+  const coPairs: Map<number, { partner: number; count: number }[]> = new Map();
+  for (const o of coList) {
+    const [a, b] = o.pair.split(',').map(Number);
+    if (!coPairs.has(a)) coPairs.set(a, []);
+    if (!coPairs.has(b)) coPairs.set(b, []);
+    coPairs.get(a)!.push({ partner: b, count: o.count });
+    coPairs.get(b)!.push({ partner: a, count: o.count });
+  }
   const mean = 6 * N / 49;
   const variance = N * (6 / 49) * (43 / 49) * (43 / 48);
   const std = Math.sqrt(variance);
@@ -127,14 +193,10 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
     // 3. 天數
     score += Math.min(days / 60, 1) * 0.5;
 
-    // 4. 共現
+    // 4. 共現 (完整表: 最多拍檔 = 最高共現次數)
     let bestCo = 0, bestPartner = 0;
-    for (const o of s.cooccur) {
-      const [a, b] = o.pair.split(',').map(Number);
-      if ((a === n || b === n) && o.count > bestCo) {
-        bestCo = o.count;
-        bestPartner = a === n ? b : a;
-      }
+    for (const p of coPairs.get(n) || []) {
+      if (p.count > bestCo) { bestCo = p.count; bestPartner = p.partner; }
     }
     score += (bestCo - coExp) * 2;
     if (bestCo >= 15) parts.push(`同${bestPartner}共現${bestCo}次`);
@@ -156,6 +218,37 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   scores.sort((a, b) => b.score - a.score);
   let picked = scores.slice(0, top);
 
+  // 結構平衡: 奇偶/大小都要 2-4 (歷史 77% 開 2-4 奇、81% 開 2-4 細)
+  // 8 個號碼: odd ∈ [2,4], small ∈ [2,4]
+  for (let pass = 0; pass < 20; pass++) {
+    const pickedNums = new Set(picked.map(x => x.num));
+    const inPool = (n: number) => pickedNums.has(n);
+    const odd = picked.filter(x => x.num % 2 === 1).length;
+    const small = picked.filter(x => x.num <= 24).length;
+    if (odd >= 2 && odd <= 4 && small >= 2 && small <= 4) break;
+    let swapped = false;
+    if (odd > 4) {
+      const drop = picked.find(x => x.num % 2 === 1);
+      const add = scores.find(x => !inPool(x.num) && x.num % 2 === 0);
+      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
+    } else if (odd < 2) {
+      const drop = picked.find(x => x.num % 2 === 0);
+      const add = scores.find(x => !inPool(x.num) && x.num % 2 === 1);
+      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
+    }
+    if (swapped) continue;
+    const small2 = picked.filter(x => x.num <= 24).length;
+    if (small2 > 4) {
+      const drop = picked.find(x => x.num <= 24);
+      const add = scores.find(x => !inPool(x.num) && x.num > 24);
+      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
+    } else if (small2 < 2) {
+      const drop = picked.find(x => x.num > 24);
+      const add = scores.find(x => !inPool(x.num) && x.num <= 24);
+      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
+    }
+  }
+
   // 連號修正: 歷史 45.8% 開獎含連號 — 若完全冇連號, 換入一個相鄰號碼
   const consecPairs = (arr: number[]) => {
     const s2 = [...arr].sort((a, b) => a - b);
@@ -174,6 +267,7 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
     }
   }
 
+  picked.sort((a, b) => b.score - a.score);
   const nums = picked.map(x => x.num).sort((a, b) => a - b);
   const odd = nums.filter(n => n % 2 === 1).length;
   const small = nums.filter(n => n <= 24).length;
@@ -226,6 +320,16 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
     gaps[n] = N;  // 預設 = 從未出過; gap=0 表示最新一期出過 (唔可以用 0 當 falsy)
     for (let i = 0; i < N; i++) {
       if (draws[i].main.includes(n) || draws[i].special === n) { gaps[n] = i; lastSeen[n] = draws[i].date; break; }
+    }
+  }
+  // 特別號專用: 全部 49 個號碼做特別號嘅次數 + 距上次做特別號幾多期
+  const spFreqAll: Record<number, number> = {};
+  for (const d of draws) spFreqAll[d.special] = (spFreqAll[d.special] || 0) + 1;
+  const spGaps: Record<number, number> = {};
+  for (let n = 1; n <= 49; n++) {
+    spGaps[n] = N;
+    for (let i = 0; i < N; i++) {
+      if (draws[i].special === n) { spGaps[n] = i; break; }
     }
   }
   // 天前 (days since last seen) — 由日期計
@@ -291,7 +395,10 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
       return Math.round(sum / (N - 1) * 100) / 100;
     })(),
     cooccur: sorted(co).slice(0, 15).map(([pair, count]) => ({ pair, count })),
+    cooccur_full: sorted(co).slice(0, 300).map(([pair, count]) => ({ pair, count })),
     gaps: Object.entries(gaps).map(([num, gap]) => ({ num: Number(num), gap })),
+    special_freq_all: Object.entries(spFreqAll).map(([num, count]) => ({ num: Number(num), count })).sort((a, b) => a.num - b.num),
+    special_gaps: Object.entries(spGaps).map(([num, gap]) => ({ num: Number(num), gap })),
     combo2: toList(combo2, 15),
     combo3: toList(combo3, 15),
     consec2: toList(consec2, 15),
@@ -305,11 +412,45 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
 // ── 推薦引擎 ──
 // jitter: 隨機抖動幅度 (0 = 每次都一樣, >0 = 次次可能唔同)
 // seedArg: 可選種子 — 傳入就可以重現同一組抖動 (命中率 walk-forward 用嚟對應顯示)
+
+// 特別號預測: 用特別號專用統計 (全部 49 個號碼做特別號嘅次數 + 距上次做特別號嘅期數)
+// 同主號碼引擎分開 — 特別號係獨立攪珠, 唔應該用主號碼頻率計
+export function pickSpecial(s: DashboardData, jitter = 0, seedArg?: number): { special: number; reason: string } {
+  const N = s.total_draws;
+  const spFreq = new Map((s.special_freq_all || []).map(x => [x.num, x.count]));
+  const spGap = new Map((s.special_gaps || []).map(x => [x.num, x.gap]));
+  const spMean = N / 49;
+  const spVar = N * (1 / 49) * (48 / 49);
+  const spStd = Math.sqrt(spVar) || 1;
+  let seed = (seedArg ?? Math.floor(Math.random() * 0x7fffffff)) * 104729 + 7;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  const amp = jitter > 0 ? jitter * 0.5 : 0;  // 特別號得一個位, 抖動幅度細啲 (唔好亂咁跳)
+  let best = 1, bs = -Infinity;
+  let bestCount = 0, bestGap = N;
+  for (let n = 1; n <= 49; n++) {
+    const count = spFreq.get(n) || 0;
+    const gap = spGap.get(n) ?? N;
+    const z = (count - spMean) / spStd;
+    // 特別號 z-score (×1.5) + 漏出期數 (×0.8, 期望 7 期) + 特別號之王 13 (×2) + 抖動
+    let sc = z * 1.5 + Math.min(gap / 7, 3) * 0.8 + (n === 13 ? 2 : 0);
+    if (jitter > 0) sc += (rand() - 0.5) * 2 * amp;
+    if (sc > bs) { bs = sc; best = n; bestCount = count; bestGap = gap; }
+  }
+  const parts = [`全部${N}期做特別號${bestCount}次`];
+  if (bestGap >= 10) parts.push(`已${bestGap}期冇做特別號`);
+  if (best === 13) parts.push('特別號之王');
+  return { special: best, reason: parts.join('、') };
+}
+
 export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): PredictResult {
   const N = s.total_draws;
-  const freq: Record<number, number> = Object.fromEntries(s.freq_top.map(x => [x.num, x.count]));
+  // 用 freq_all (全部 49 個號碼) 計分, 唔可以淨係 top 15 — 否則中低頻號碼全部當平均頻率, 喪失分辨力
+  const freq: Record<number, number> = Object.fromEntries((s.freq_all || s.freq_top).map(x => [x.num, x.count]));
   const baseAvg = 6 * N / 49;
-  const co: Record<string, number> = Object.fromEntries(s.cooccur.map(x => [x.pair, x.count]));
+  const co: Record<string, number> = Object.fromEntries((s.cooccur_full || s.cooccur).map(x => [x.pair, x.count]));
   const coExp = N * 15 / 1176;
   const gapMap: Record<number, number> = Object.fromEntries(s.gaps.map(g => [g.num, g.gap]));
   const recentMap: Record<number, number> = Object.fromEntries((s.recent_freq || []).map(x => [x.num, x.count]));
@@ -342,7 +483,8 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
   };
   const pool: number[] = [];
   // 種子對都加 jitter: 每次可能揀唔同嘅共現對 (次次唔同嘅關鍵)
-  const strongPairs = s.cooccur
+  // 用完整共現表 — 以前 top 15 得 15 對揀, 而家由 300 對入面揀 25 對, 種子對多樣化好多
+  const strongPairs = (s.cooccur_full || s.cooccur)
     .filter(x => x.count >= 3)
     .map(x => ({ ...x, j: jitter > 0 ? jit(0) : 0 }))
     .sort((a, b) => (b.count + b.j) - (a.count + a.j))
@@ -448,8 +590,28 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
       }
     }
   }
-  const main10 = pool.slice(0, 10).sort((a, b) => a - b);
   const main15 = pool.slice(0, 15).sort((a, b) => a - b);
+  // main10 結構修正: 15 字平衡 loop 可能換走頭 10 個入面嘅號碼, 令 main10 奇偶/大小超出 3-7
+  // 喺 pool 內部 (10-15 位) 搵啱結構嘅號碼對調 — 保持 main10 ⊆ main15, 總數不變, 冇重複
+  {
+    const swapFix = (isOdd: boolean) => {
+      const first10 = pool.slice(0, 10);
+      const count = first10.filter(n => (isOdd ? n % 2 === 1 : n <= 24)).length;
+      if (count <= 7 && count >= 3) return;
+      if (count > 7) {
+        const drop = first10.findIndex(n => isOdd ? n % 2 === 1 : n <= 24);
+        const add = pool.findIndex((n, i) => i >= 10 && (isOdd ? n % 2 === 0 : n > 24));
+        if (drop >= 0 && add >= 0) [pool[drop], pool[add]] = [pool[add], pool[drop]];
+      } else {
+        const drop = first10.findIndex(n => isOdd ? n % 2 === 0 : n > 24);
+        const add = pool.findIndex((n, i) => i >= 10 && (isOdd ? n % 2 === 1 : n <= 24));
+        if (drop >= 0 && add >= 0) [pool[drop], pool[add]] = [pool[add], pool[drop]];
+      }
+    };
+    swapFix(true);   // 奇偶 3-7
+    swapFix(false);  // 大小 3-7
+  }
+  const main10 = pool.slice(0, 10).sort((a, b) => a - b);
   // reasons 依 AI 揀號優先次序 (pool 順序, 唔係排序後) — 頭 3 個先係真正「最高分」做膽
   const reasons = pool.map(n => {
     const parts = [`全部${s.total_draws}期出${Math.round(freq[n] || baseAvg)}次`];
@@ -470,5 +632,6 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
   const n2 = Number(nn) + 1;
   // 每年最多 ~156 期 (二四六 × 52 週) — 超過即跨年 (26/156 → 27/001)
   const target_draw = n2 > 156 ? `${Number(yy) + 1}/001` : `${yy}/${String(n2).padStart(3, '0')}`;
-  return { main10, main15, reasons, target_draw, based_on: `${N}期數據` };
+  const sp = pickSpecial(s, jitter, seedArg);
+  return { main10, main15, reasons, special: sp.special, special_reason: sp.reason, target_draw, based_on: `${N}期數據` };
 }

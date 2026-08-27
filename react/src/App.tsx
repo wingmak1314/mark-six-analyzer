@@ -20,13 +20,14 @@ import { AiCompare } from './components/AiCompare';
 import { TrendChart } from './components/TrendChart';
 import { ComboCalc } from './components/ComboCalc';
 import { DanTuoCalc } from './components/DanTuoCalc';
+import { PredictLab } from './components/PredictLab';
 import './App.css';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo' | 'payout' | 'aivs';
+type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'combo' | 'dantuo' | 'payout' | 'aivs' | 'predictlab';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -219,6 +220,9 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
           {nums.map(n => <Ball key={n} n={n} cls="red" size="lg" />)}
         </div>
         <div className="hero-meta">
+          <span>⭐ 特別號建議：<Ball n={shown.special} cls="sp" size="lg" />（{shown.special_reason}）</span>
+        </div>
+        <div className="hero-meta">
           <span>💡 複式{count}字 = {tickets.toLocaleString()}注 = ${cost.toLocaleString()}</span>
           <span>🎯 每注中頭獎機率固定 1/13,983,816（每期獨立，冇方法提高）</span>
         </div>
@@ -314,6 +318,7 @@ function MainApp() {
           {nav('combo', '🧮 計算器')}
           {nav('dantuo', '🎱 膽拖')}
           {nav('checker', '🧾 核對')}
+          {nav('predictlab', '🧪 預測實驗室')}
           {nav('aivs', '🔮 AI 對比')}
           {nav('predict', '🎯 AI 推薦')}
         </nav>
@@ -361,6 +366,8 @@ function MainApp() {
       {tab === 'payout' && <PayoutTrend />}
 
       {tab === 'aivs' && <AiCompare history={history.data || []} />}
+
+      {tab === 'predictlab' && <PredictLab data={data} history={history.data || []} />}
 
       {tab === 'combo' && (
         <div className="grid">

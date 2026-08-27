@@ -516,3 +516,35 @@ footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 2
 .aivs-line { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
 .aivs-label { font-size: 11px; color: var(--text-dim); min-width: 34px; text-transform: uppercase; letter-spacing: 1px; }
 .aivs-line .hist-balls .ball { width: 24px; height: 24px; font-size: 11px; }
+
+/* ── 預測實驗室 v2.1 ── */
+/* 注碼分配器 */
+.planner-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+.planner-card { border: 1px solid rgba(54, 45, 89, 0.6); border-radius: 12px; padding: 12px 14px; background: rgba(255, 255, 255, 0.02); display: flex; flex-direction: column; gap: 6px; }
+.planner-best { border-color: var(--lime); box-shadow: 0 0 0 1px rgba(194, 239, 78, 0.35), 0 6px 24px rgba(194, 239, 78, 0.08); }
+.planner-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 2px; }
+.planner-name { font-size: 14.5px; font-weight: 600; }
+.planner-crown { font-size: 11px; color: #150f23; background: var(--lime); border-radius: 20px; padding: 2px 8px; font-weight: 700; }
+.planner-tag { font-size: 11px; color: var(--coral); border: 1px solid rgba(255, 178, 135, 0.4); border-radius: 20px; padding: 2px 8px; }
+.planner-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-gray); gap: 8px; }
+.planner-row b { color: var(--text-white); font-size: 13.5px; font-family: 'JetBrains Mono', monospace; }
+
+/* 組合形狀檢查器 */
+.shape-score { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 4px; padding: 10px 14px; background: rgba(106, 95, 193, 0.12); border: 1px solid rgba(106, 95, 193, 0.45); border-radius: 10px; flex-wrap: wrap; }
+.shape-score-num { font-size: 30px; font-weight: 700; color: var(--lime); font-family: 'JetBrains Mono', monospace; }
+.shape-score-label { font-size: 13px; color: var(--text-gray); }
+.shape-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.shape-row { display: grid; grid-template-columns: 150px 1fr 170px; align-items: center; gap: 10px; font-size: 13px; }
+.shape-label { color: var(--text-gray); }
+.shape-pct { color: var(--text-dim); font-size: 12.5px; text-align: right; }
+@media (max-width: 640px) {
+  .shape-row { grid-template-columns: 1fr; gap: 4px; }
+  .shape-pct { text-align: left; }
+}
+
+/* 隔期關聯重複分佈 */
+.repeat-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.repeat-bar-wrap { height: 56px; display: flex; align-items: flex-end; }
+.repeat-bar { width: 22px; background: linear-gradient(180deg, var(--accent-purple), var(--deep-violet)); border-radius: 4px 4px 0 0; min-height: 3px; }
+.repeat-label { font-size: 11px; color: var(--text-dim); }
+.repeat-count { font-size: 12px; color: var(--text-white); font-family: 'JetBrains Mono', monospace; }
