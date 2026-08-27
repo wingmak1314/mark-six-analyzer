@@ -163,8 +163,8 @@ body {
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 16px 30px -6px, rgba(106, 95, 193, 0.2) 0px 0px 20px;
+  transform: translateY(-2px);
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 12px 24px -8px, rgba(106, 95, 193, 0.15) 0px 0px 16px;
   border-color: var(--accent-purple);
 }
 .card-head {
@@ -649,3 +649,10 @@ footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 2
 
 /* 波色標註 (reasons) */
 .reason-wave { color: var(--lime); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
+
+/* ── Dashboard AI 7 字主打 ── */
+.dashboard-7balls { margin: 10px 0 8px; }
+.dashboard-7balls .wave-ball { width: 34px; height: 34px; font-size: 14px; }
+.dashboard-7reasons { margin: 10px 0 12px; }
+.dashboard-7reasons .reason-item { padding: 5px 0; border-bottom: 1px dashed rgba(54, 45, 89, 0.4); }
+.dashboard-7reasons .reason-item:last-child { border-bottom: none; }

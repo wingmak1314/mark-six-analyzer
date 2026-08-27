@@ -24,6 +24,25 @@ describe('六合彩 App smoke', () => {
     render(<App />);
     await screen.findByText(/第 \d+\/\d+ 期/, {}, { timeout: 8000 });
     expect(screen.getByText(/共 \d+ 期數據/)).toBeTruthy();
+    // AI 7 字主打卡片
+    expect(screen.getByText(/AI 7 字主打/)).toBeTruthy();
+    // 7 個波色球 (6 主 + 1 特別)
+    const waveBalls = document.querySelectorAll('.dashboard-7balls .wave-ball');
+    expect(waveBalls.length).toBe(7);
+    // 特別號黃邊
+    const special = document.querySelectorAll('.dashboard-7balls .wave-special');
+    expect(special.length).toBe(1);
+  }, 20000);
+
+  it('dashboard 7 字主打 → 去 AI 推薦按鈕', async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByText(/AI 7 字主打/, {}, { timeout: 8000 }));
+    // 按鈕切去 AI 推薦 tab
+    const goBtn = [...document.querySelectorAll('.gen-btn')].find(b => (b.textContent || '').includes('去 AI 推薦'));
+    expect(goBtn).toBeTruthy();
+    fireEvent.click(goBtn!);
+    // AI 推薦 tab 已切換 (hero 標題 + 命中率區出現)
+    await screen.findByText('🎯 AI 大數據推薦', {}, { timeout: 8000 });
   }, 20000);
 
   it('🧪 預測實驗室 tab: 4 個新組件全部渲染', async () => {

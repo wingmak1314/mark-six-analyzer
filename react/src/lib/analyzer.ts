@@ -220,8 +220,8 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   scores.sort((a, b) => b.score - a.score);
   let picked = scores.slice(0, top);
 
-  // 結構平衡: 奇偶/大小都要 2-4 (歷史 77% 開 2-4 奇、81% 開 2-4 細)
-  // 8 個號碼: odd ∈ [2,4], small ∈ [2,4]
+  // 結構平衡: 奇偶/大小都要 2-4 (歷史 77% 開 2-4 奇、81% 開 2-4 細) + 波色分散 (歷史 ~紅35/藍33/綠33)
+  // 8 個號碼: odd ∈ [2,4], small ∈ [2,4], 任何波色 ≤ 4 且至少 2 色
   // ⚠️ 要喺連號修正之後再行多次 — 連號 swap 會破壞平衡
   const balance = (picked: { num: number; score: number; parts: string[] }[]) => {
     for (let pass = 0; pass < 20; pass++) {
@@ -250,6 +250,19 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
         const add = scores.find(x => !inPool.has(x.num) && x.num <= 24);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
       }
+    }
+    // 波色分散: 任何色 > 4 → 換走一個, 補最少色
+    for (let pass = 0; pass < 8; pass++) {
+      const inPool = new Set(picked.map(x => x.num));
+      let fixed = false;
+      for (const c of ['red', 'blue', 'green'] as const) {
+        const colorCount = picked.filter(x => waveColor(x.num) === c).length;
+        if (colorCount <= 4) continue;
+        const drop = picked.find(x => waveColor(x.num) === c);
+        const add = scores.find(x => !inPool.has(x.num) && waveColor(x.num) !== c);
+        if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); fixed = true; break; }
+      }
+      if (!fixed) break;
     }
     return picked;
   };

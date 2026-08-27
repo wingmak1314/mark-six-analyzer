@@ -50,10 +50,10 @@ function ComboBalls({ nums }: { nums: string }) {
 }
 
 // 波色波 (官方紅/藍/綠) — AI 推薦 7 字主打用
-function WaveBall({ n, size = '' }: { n: number; size?: string }) {
+function WaveBall({ n, size = '', special = false }: { n: number; size?: string; special?: boolean }) {
   const color = waveColor(n);
   return (
-    <span className={`wave-ball wave-${color} ${size}`} title={`${n}號 · ${waveLabel(color)}`}>
+    <span className={`wave-ball wave-${color} ${size}${special ? ' wave-special' : ''}`} title={`${n}號 · ${waveLabel(color)}${special ? ' · 特別號' : ''}`}>
       {n}
     </span>
   );
@@ -142,12 +142,36 @@ function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard
   );
 }
 
-function DashboardView({ data, history }: { data: ReturnType<typeof useDashboard>['data']; history: Draw[] }) {
+function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof useDashboard>['data']; history: Draw[]; onGoPredict: () => void }) {
   if (!data) return null;
+  // 7 字主打 (穩定核心, 冇 jitter — 每日數據更新先會變)
+  const top7 = useMemo(() => {
+    const p = predictStatic(data, 0);
+    return { main6: p.main10.slice(0, 6), special: p.special, target: p.target_draw, reasons: p.reasons.slice(0, 6) };
+  }, [data]);
   return (
     <>
       <Hero data={data} />
       <div className="grid">
+        <Card title={`🎯 AI 7 字主打（目標 ${top7.target}）`} icon="🎯">
+          <div className="hero-balls dashboard-7balls">
+            {top7.main6.map(n => <WaveBall key={n} n={n} />)}
+            <span className="plus">+</span>
+            <WaveBall n={top7.special} special />
+          </div>
+          <div className="hero-meta">
+            <span>🎨 波色：{waveCombo(top7.main6)} · 特別號 {waveLabel(waveColor(top7.special))}波</span>
+          </div>
+          <div className="reason-list dashboard-7reasons">
+            {top7.reasons.map(r => (
+              <div className="reason-item" key={r.num}>
+                <WaveBall n={r.num} />
+                <span className="reason-why"><b className="reason-wave">{waveLabel(waveColor(r.num))}</b> · {r.why}</span>
+              </div>
+            ))}
+          </div>
+          <button className="gen-btn" onClick={onGoPredict}>🎯 去 AI 推薦睇 7 字主打 + 命中率 →</button>
+        </Card>
         <Card title="📅 最近 10 期" icon="📅">
           <div className="recent-list">
             {history.slice(0, 10).map(d => (
@@ -236,7 +260,7 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
         <div className="hero-balls">
           {nums.slice(0, 6).map(n => <WaveBall key={n} n={n} size="lg" />)}
           <span className="plus">+</span>
-          <WaveBall n={shown.special} size="lg" />
+          <WaveBall n={shown.special} size="lg" special />
         </div>
         <div className="hero-meta">
           <span>🎯 7 字主打：6 主號 + 1 特別號</span>
@@ -351,7 +375,7 @@ function MainApp() {
 
       <Countdown />
 
-      {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} />}
+      {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} onGoPredict={() => setTab('predict')} />}
 
       {tab === 'tongji' && <TongjiView data={data} />}
 
@@ -402,7 +426,7 @@ function MainApp() {
       )}
 
       <footer>
-        <p>數據來源 lottery.hk · GitHub Actions 每日自動更新（開獎日 21:35 即時）</p>
+        <p>數據來源 lottery.hk · GitHub Actions 每日自動更新（開獎日 21:35 即時）· 數據截至 {data.last_draw}（{data.last_date}）</p>
         <p className="disclaimer">⚠️ 免責聲明：本網站嘅數據分析僅供參考，絕不保證中獎。博彩有風險，切勿沉迷賭博。未滿18歲人士不得參與博彩。如有需要，請致電平和基金熱線 1834 633。</p>
       </footer>
     </div>
