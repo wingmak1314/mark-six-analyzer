@@ -642,3 +642,10 @@ footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 2
   .color-year-table .color-table-row { grid-template-columns: 48px 1fr; }
   .color-year-table .color-table-row > span:nth-child(2), .color-year-table .color-table-row > span:nth-child(6) { display: none; }
 }
+
+/* ── AI 推薦 7 字主打 (大波色球) ── */
+.wave-ball.lg { width: 42px; height: 42px; font-size: 17px; }
+.predict-hero .wave-ball.lg { box-shadow: inset 0 -3px 0 rgba(0,0,0,.25), rgba(0,0,0,.25) 0px 5px 10px; }
+
+/* 波色標註 (reasons) */
+.reason-wave { color: var(--lime); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }

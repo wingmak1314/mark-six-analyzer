@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDashboard, usePrediction, useHistory } from './hooks/useMarksix';
 import { predictStatic } from './lib/analyzer';
 import type { Draw } from './lib/analyzer';
+import { waveColor, waveLabel, type WaveColor } from './lib/colors';
 import { Ball } from './components/Ball';
 import { Card } from './components/Card';
 import { BarChart } from './components/BarChart';
@@ -46,6 +47,23 @@ function StatsTable({ title, icon, headers, rows, renderRow }: {
 function ComboBalls({ nums }: { nums: string }) {
   const parts = nums.split(',').map(Number);
   return <span className="hist-balls">{parts.map(n => <Ball key={n} n={n} cls="red" />)}</span>;
+}
+
+// 波色波 (官方紅/藍/綠) — AI 推薦 7 字主打用
+function WaveBall({ n, size = '' }: { n: number; size?: string }) {
+  const color = waveColor(n);
+  return (
+    <span className={`wave-ball wave-${color} ${size}`} title={`${n}號 · ${waveLabel(color)}`}>
+      {n}
+    </span>
+  );
+}
+
+// 波色組合文字 (例如 「紅2 藍2 綠2」)
+function waveCombo(nums: number[]): string {
+  const counts = { red: 0, blue: 0, green: 0 } as Record<WaveColor, number>;
+  for (const n of nums) counts[waveColor(n)]++;
+  return `${counts.red}紅 ${counts.blue}藍 ${counts.green}綠`;
 }
 
 function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard>['data']> }) {
@@ -214,25 +232,30 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
     <>
       <section className="hero predict-hero">
         <div className="hero-draw">🎯 AI 大數據推薦</div>
-        <div className="hero-date">目標: {shown.target_draw} · 基於 {shown.based_on}</div>
+        <div className="hero-date">目標: {shown.target_draw} · 基於 {shown.based_on} · 🎨 波色平衡（歷史 ~紅35/藍33/綠33%）</div>
         <div className="hero-balls">
-          {nums.map(n => <Ball key={n} n={n} cls="red" size="lg" />)}
+          {nums.slice(0, 6).map(n => <WaveBall key={n} n={n} size="lg" />)}
+          <span className="plus">+</span>
+          <WaveBall n={shown.special} size="lg" />
         </div>
         <div className="hero-meta">
-          <span>⭐ 特別號建議：<Ball n={shown.special} cls="sp" size="lg" />（{shown.special_reason}）</span>
+          <span>🎯 7 字主打：6 主號 + 1 特別號</span>
+          <span>🎨 波色：{waveCombo(nums.slice(0, 6))} · 特別號 {waveLabel(waveColor(shown.special))}波</span>
+          <span>⭐ 特別號建議：{shown.special_reason}</span>
         </div>
         <div className="hero-meta">
-          <span>💡 複式{count}字 = {tickets.toLocaleString()}注 = ${cost.toLocaleString()}</span>
+          <span>💡 進階：{count} 個字複式 = {tickets.toLocaleString()}注 = ${cost.toLocaleString()}</span>
           <span>🎯 每注中頭獎機率固定 1/13,983,816（每期獨立，冇方法提高）</span>
         </div>
         <div className="hero-meta">
           {(() => {
-            const sorted = [...nums].sort((a, b) => a - b);
-            const odd = nums.filter(n => n % 2 === 1).length;
-            const small = nums.filter(n => n <= 24).length;
+            const top6 = nums.slice(0, 6);
+            const sorted = [...top6].sort((a, b) => a - b);
+            const odd = top6.filter(n => n % 2 === 1).length;
+            const small = top6.filter(n => n <= 24).length;
             let cons = 0;
             for (let i = 0; i < sorted.length - 1; i++) if (sorted[i + 1] === sorted[i] + 1) cons++;
-            return <span>⚖️ 結構：{odd}奇{nums.length - odd}偶 · {small}細{nums.length - small}大 · 連號{cons}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>;
+            return <span>⚖️ 結構：{odd}奇{6 - odd}偶 · {small}細{6 - small}大 · 連號{cons}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>;
           })()}
         </div>
       </section>
@@ -243,6 +266,9 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
           <button className={count === 10 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(10)}>10 個字 ($2,100)</button>
           <button className={count === 15 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(15)}>15 個字 ($50,050)</button>
         </div>
+      </div>
+      <div className="gen-note" style={{ margin: '0 auto 10px', maxWidth: 720, textAlign: 'center' }}>
+        🎯 上面係 <b>7 字主打</b>（6 主號 + 1 特別號，$10 一注）— 波色已平衡。下面嘅 reasons 頭 6 個就係主打嘅主號碼；想買大啲就揀 10 / 15 個字複式。
       </div>
 
       {/* AI 膽拖方案 */}
@@ -271,11 +297,12 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
         <div className="reason-list">
           {shown.reasons.slice(0, count).map(r => (
             <div className="reason-item" key={r.num}>
-              <Ball n={r.num} cls="red" />
-              <span className="reason-why">{r.why}</span>
+              <WaveBall n={r.num} />
+              <span className="reason-why"><b className="reason-wave">{waveLabel(waveColor(r.num))}</b> · {r.why}</span>
             </div>
           ))}
         </div>
+        {count > 6 && <div className="gen-note">💡 頭 6 個 = 7 字主打主號碼；其餘係 10/15 字進階組合嘅號碼。</div>}
       </Card>
     </>
   );

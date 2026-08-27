@@ -1,4 +1,6 @@
 // 六合彩分析引擎 — 純前端 static (GitHub Pages, 數據由 history_full.json 讀入)
+import { waveColor } from './colors';
+
 export interface Draw {
   draw: string;
   date: string;
@@ -484,6 +486,10 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
     s2 += ((recentMap[n] || 0) - recentAvg) * 0.8;
     // 連號傾向: 同 pool 內號碼相鄰 → 加分 (歷史 45.8% 開獎含連號, 唔應該避開)
     if (pool.some(o => Math.abs(o - n) === 1)) s2 += 1.2;
+    // 波色分散: 同 pool 已有同色太多 → 扣分 (歷史波色比例 ~紅34.7/藍32.7/綠32.7, 唔應該過度集中單一色)
+    // 每多一個同色扣 1.5 分 → 自然分散, 唔會 6 個全部同色
+    const sameColor = pool.filter(o => waveColor(o) === waveColor(n)).length;
+    s2 -= sameColor * 1.5;
     if (jitter > 0) s2 += jit(n);  // 隨機抖動
     return s2;
   };
@@ -616,6 +622,35 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
     };
     swapFix(true);   // 奇偶 3-7
     swapFix(false);  // 大小 3-7
+  }
+  // 波色平衡: 歷史波色比例 ~紅34.7/藍32.7/綠32.7, 唔可以某一色過度集中
+  // 15 字成個 pool 任何色 ≤ 7; main10 (前 10 個) 任何色 ≤ 6
+  {
+    for (let pass = 0; pass < 8; pass++) {
+      let changed = false;
+      for (const c of ['red', 'blue', 'green'] as const) {
+        const colorCount = pool.filter(n => waveColor(n) === c).length;
+        if (colorCount <= 7) continue;
+        const drop = pool.findIndex(n => waveColor(n) === c);
+        if (drop < 0) continue;
+        const others = candidates.filter(n => !pool.includes(n) && waveColor(n) !== c);
+        if (!others.length) continue;
+        let b = others[0], bsc = -Infinity;
+        for (const n of others) { const sc = score(n, pool); if (sc > bsc) { bsc = sc; b = n; } }
+        pool.splice(drop, 1); pool.push(b);
+        changed = true;
+      }
+      if (!changed) break;
+    }
+    // main10 (前 10 個) 波色: 任何色 ≤ 6 — 喺 pool 內部 (10-15 位) 對調
+    for (const c of ['red', 'blue', 'green'] as const) {
+      const first10 = pool.slice(0, 10);
+      const colorCount = first10.filter(n => waveColor(n) === c).length;
+      if (colorCount <= 6) continue;
+      const drop = first10.findIndex(n => waveColor(n) === c);
+      const add = pool.findIndex((n, i) => i >= 10 && waveColor(n) !== c);
+      if (drop >= 0 && add >= 0) [pool[drop], pool[add]] = [pool[add], pool[drop]];
+    }
   }
   const main10 = pool.slice(0, 10).sort((a, b) => a - b);
   // reasons 依 AI 揀號優先次序 (pool 順序, 唔係排序後) — 頭 3 個先係真正「最高分」做膽
