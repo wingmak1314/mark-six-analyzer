@@ -5,6 +5,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 // base: './' → relative asset paths, works on GitHub Pages subpath (/mark-six-analyzer/)
 export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
   plugins: [
     react(),
     VitePWA({

@@ -220,34 +220,38 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
 
   // 結構平衡: 奇偶/大小都要 2-4 (歷史 77% 開 2-4 奇、81% 開 2-4 細)
   // 8 個號碼: odd ∈ [2,4], small ∈ [2,4]
-  for (let pass = 0; pass < 20; pass++) {
-    const pickedNums = new Set(picked.map(x => x.num));
-    const inPool = (n: number) => pickedNums.has(n);
-    const odd = picked.filter(x => x.num % 2 === 1).length;
-    const small = picked.filter(x => x.num <= 24).length;
-    if (odd >= 2 && odd <= 4 && small >= 2 && small <= 4) break;
-    let swapped = false;
-    if (odd > 4) {
-      const drop = picked.find(x => x.num % 2 === 1);
-      const add = scores.find(x => !inPool(x.num) && x.num % 2 === 0);
-      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
-    } else if (odd < 2) {
-      const drop = picked.find(x => x.num % 2 === 0);
-      const add = scores.find(x => !inPool(x.num) && x.num % 2 === 1);
-      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
+  // ⚠️ 要喺連號修正之後再行多次 — 連號 swap 會破壞平衡
+  const balance = (picked: { num: number; score: number; parts: string[] }[]) => {
+    for (let pass = 0; pass < 20; pass++) {
+      const inPool = new Set(picked.map(x => x.num));
+      const odd = picked.filter(x => x.num % 2 === 1).length;
+      const small = picked.filter(x => x.num <= 24).length;
+      if (odd >= 2 && odd <= 4 && small >= 2 && small <= 4) break;
+      let swapped = false;
+      if (odd > 4) {
+        const drop = picked.find(x => x.num % 2 === 1);
+        const add = scores.find(x => !inPool.has(x.num) && x.num % 2 === 0);
+        if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
+      } else if (odd < 2) {
+        const drop = picked.find(x => x.num % 2 === 0);
+        const add = scores.find(x => !inPool.has(x.num) && x.num % 2 === 1);
+        if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
+      }
+      if (swapped) continue;
+      const small2 = picked.filter(x => x.num <= 24).length;
+      if (small2 > 4) {
+        const drop = picked.find(x => x.num <= 24);
+        const add = scores.find(x => !inPool.has(x.num) && x.num > 24);
+        if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
+      } else if (small2 < 2) {
+        const drop = picked.find(x => x.num > 24);
+        const add = scores.find(x => !inPool.has(x.num) && x.num <= 24);
+        if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
+      }
     }
-    if (swapped) continue;
-    const small2 = picked.filter(x => x.num <= 24).length;
-    if (small2 > 4) {
-      const drop = picked.find(x => x.num <= 24);
-      const add = scores.find(x => !inPool(x.num) && x.num > 24);
-      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
-    } else if (small2 < 2) {
-      const drop = picked.find(x => x.num > 24);
-      const add = scores.find(x => !inPool(x.num) && x.num <= 24);
-      if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
-    }
-  }
+    return picked;
+  };
+  picked = balance(picked);
 
   // 連號修正: 歷史 45.8% 開獎含連號 — 若完全冇連號, 換入一個相鄰號碼
   const consecPairs = (arr: number[]) => {
@@ -266,6 +270,8 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
       picked.push(adj[0]);
     }
   }
+  // 連號修正可能破壞平衡 → 再平衡一次
+  picked = balance(picked);
 
   picked.sort((a, b) => b.score - a.score);
   const nums = picked.map(x => x.num).sort((a, b) => a - b);
