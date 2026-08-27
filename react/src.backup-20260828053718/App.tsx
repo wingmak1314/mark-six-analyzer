@@ -19,14 +19,13 @@ import { PayoutTrend } from './components/PayoutTrend';
 import { TrendChart } from './components/TrendChart';
 import { BetCalc } from './components/BetCalc';
 import { PredictLab } from './components/PredictLab';
-import { ColorAnalysis } from './components/ColorAnalysis';
 import './App.css';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'tongji' | 'colors' | 'history' | 'predict' | 'statspredict' | 'predictlab' | 'trend' | 'payout' | 'generator' | 'betcalc' | 'checker';
+type Tab = 'dashboard' | 'history' | 'predict' | 'tongji' | 'generator' | 'checker' | 'statspredict' | 'trend' | 'betcalc' | 'payout' | 'predictlab';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -309,13 +308,12 @@ function MainApp() {
         <nav className="nav">
           {nav('dashboard', '📊 儀表板')}
           {nav('tongji', '📋 統計總覽')}
-          {nav('colors', '🎨 波色分析')}
           {nav('history', '📅 開獎記錄')}
+          {nav('trend', '📈 走勢')}
+          {nav('payout', '💰 派彩走勢')}
           {nav('predict', '🎯 AI 推薦')}
           {nav('statspredict', '📐 統計預測')}
           {nav('predictlab', '🧪 預測實驗室')}
-          {nav('trend', '📈 走勢')}
-          {nav('payout', '💰 派彩走勢')}
           {nav('generator', '🎲 選號器')}
           {nav('betcalc', '🧮 投注計算')}
           {nav('checker', '🧾 核對')}
@@ -327,8 +325,6 @@ function MainApp() {
       {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} />}
 
       {tab === 'tongji' && <TongjiView data={data} />}
-
-      {tab === 'colors' && <ColorAnalysis history={history.data || []} />}
 
       {tab === 'history' && (
         <Card title="📅 最近開獎記錄" icon="📅">
