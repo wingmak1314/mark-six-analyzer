@@ -123,7 +123,7 @@ export function ShapeScore({ history }: Props) {
             {score.parts.map(p => (
               <div className="shape-row" key={p.label}>
                 <span className="shape-label">{p.label}</span>
-                <div className="bc-bar"><div className="bc-fill" style={{ ...bar(p.pct), background: '#6a5fc1' }} /></div>
+                <div className="bc-bar"><div className="bc-fill" style={{ ...bar(p.pct), background: '#0071e3' }} /></div>
                 <span className="shape-pct">{p.pct.toFixed(0)}% 期數（主流：{p.best}）</span>
               </div>
             ))}

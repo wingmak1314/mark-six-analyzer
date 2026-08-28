@@ -4,8 +4,8 @@
   "description": "六合彩大數據統計、AI推薦、智能選號",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#1f1633",
-  "theme_color": "#1f1633",
+  "background_color": "#f5f5f7",
+  "theme_color": "#f5f5f7",
   "icons": [
     { "src": "pwa-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "pwa-512.png", "sizes": "512x512", "type": "image/png" }

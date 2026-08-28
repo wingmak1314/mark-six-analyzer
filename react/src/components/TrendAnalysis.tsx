@@ -32,7 +32,7 @@ export function TrendAnalysis({ data }: { data: DashboardData }) {
         ))}
       </div>
       <Card title={`📊 ${active.label}`} icon="📊">
-        <BarChart data={active.data} color="#6a5fc1" />
+        <BarChart data={active.data} color="#0071e3" />
       </Card>
       <div className="trend-note">
         💡 提示：單雙/大細主流係 3:3（~34%），尾數 2、7、8 最熱，尾數 0 最冷，41-49 區間偏冷。

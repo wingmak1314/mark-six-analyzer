@@ -71,17 +71,17 @@ export function PayoutTrend() {
       </Card>
 
       <Card title="🎯 頭獎每注派彩（中 6 個字）" icon="🎯">
-        <LineChart data={firstSeries} color="#ffd700" fmt={fmtMoney} />
+        <LineChart data={firstSeries} color="#b25000" fmt={fmtMoney} />
         <div className="gen-note">💡 <b>$800萬 = 嗰期冇人中頭獎</b>（多寶滾入下期）。超過 $800萬 代表有人中咗,金額 = 彩池雪球分派。中頭獎機率每期都係 1/13,983,816,派彩高低只反映彩池大小。</div>
       </Card>
 
       <Card title="🥈 二獎每注派彩（中 5 + 特別號）" icon="🥈">
-        <LineChart data={secondSeries} color="#4d9fff" fmt={fmtMoney} />
+        <LineChart data={secondSeries} color="#0071e3" fmt={fmtMoney} />
         <div className="gen-note">💡 <b>$0 = 嗰期冇人中二獎</b>。二獎係彩池分派,金額浮動。</div>
       </Card>
 
       <Card title="📈 總投注額（彩池規模）" icon="📈">
-        <LineChart data={turnoverSeries} color="#c2ef4e" fmt={fmtMoney} />
+        <LineChart data={turnoverSeries} color="#248a3d" fmt={fmtMoney} />
         <div className="gen-note">💡 總投注額 = 每期全港投注總額,反映彩池規模。投注額越大 → 派彩彩池越大（尤其金多寶攪珠）。</div>
       </Card>
 

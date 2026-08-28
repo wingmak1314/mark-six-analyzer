@@ -189,11 +189,11 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
         </Card>
         <Card title="🔥 最熱號碼" icon="🔥">
           <div className="balls">{data.freq_top.slice(0, 8).map(x => <Ball key={x.num} n={x.num} cls="red" />)}</div>
-          <BarChart data={data.freq_top.slice(0, 8).map(x => [String(x.num), x.count])} color="#e63946" />
+          <BarChart data={data.freq_top.slice(0, 8).map(x => [String(x.num), x.count])} color="#d70015" />
         </Card>
         <Card title="🧊 最冷號碼" icon="🧊">
           <div className="balls">{data.freq_bottom.slice(0, 8).map(x => <Ball key={x.num} n={x.num} cls="blue" />)}</div>
-          <BarChart data={data.freq_bottom.slice(0, 8).map(x => [String(x.num), x.count])} color="#1d6fb8" />
+          <BarChart data={data.freq_bottom.slice(0, 8).map(x => [String(x.num), x.count])} color="#0040dd" />
         </Card>
         <Card title="⭐ 特別號最旺" icon="⭐">
           <div className="balls">
@@ -214,7 +214,7 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
           <Heatmap data={data.freq_all || data.freq_top} />
         </Card>
         <Card title="📊 區間分佈" icon="📊">
-          <BarChart data={data.zones} color="#f97316" />
+          <BarChart data={data.zones} color="#b25000" />
         </Card>
       </div>
     </>
