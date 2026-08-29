@@ -641,3 +641,16 @@ footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 32p
 .share-label { font-size: 14px; font-weight: 600; color: var(--text); }
 .wheel-tickets { margin-top: 10px; }
 .betcalc-tabs { justify-content: center; margin: 0 auto 14px; flex-wrap: wrap; }
+
+/* ── 金多寶 EV (v3.3) ── */
+.ev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.ev-stat { display: flex; flex-direction: column; gap: 4px; background: var(--bg); border-radius: var(--radius-md); padding: 12px 14px; }
+.ev-label { font-size: 11.5px; color: var(--text-3); }
+.ev-value { font-size: 20px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+.ev-value.ev-pos { color: var(--green); }
+.ev-value.ev-neg { color: #ff3b30; }
+.ev-stat small { font-size: 11px; color: var(--text-3); }
+.ev-critical { border: 1px solid rgba(255, 149, 0, 0.35); }
+.ev-banner { border-radius: var(--radius-md); padding: 10px 14px; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.ev-banner-pos { background: rgba(52, 199, 89, 0.12); color: var(--green); }
+.ev-banner-neg { background: rgba(255, 59, 48, 0.08); color: var(--text); }

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Card } from './Card';
 import { LineChart } from './LineChart';
+import { prizeTiers } from '../lib/analyzer';
 
 interface Payout {
   draw: string;
@@ -30,6 +31,19 @@ async function loadPayouts(): Promise<Payout[]> {
   return d.payouts || [];
 }
 
+// ── 金多寶 EV 模型 ──
+// 平時六合彩返還率 ~54% (EV 負)。彩池 (金多寶) 夠大先有機會 EV>0。
+// 精確計: 固定獎 (六獎$40/七獎$20) EV + 頭獎彩池 EV (假設獨中) - 成本 $10
+const T = 13_983_816;
+const FIXED_EV = (40 * 17220 + 20 * 229600) / T;  // 六獎+七獎固定獎 EV ≈ 0.378
+// 臨界彩池: 要幾大先令 EV = 0 (假設頭獎獨中)
+function criticalPool(): number {
+  return (10 - FIXED_EV) * T;
+}
+function evAtPool(pool: number): number {
+  return FIXED_EV + pool / T - 10;
+}
+
 export function PayoutTrend() {
   const [window, setWindow] = useState<'all' | '30'>('all');
   const { data, isLoading, isError } = useQuery({
@@ -54,8 +68,43 @@ export function PayoutTrend() {
   const secondSeries = list.map(p => ({ label: p.draw, value: p.second ?? 0 }));
   const turnoverSeries = list.map(p => ({ label: p.draw, value: p.turnover ?? 0 }));
 
+  // 金多寶 EV: 最新頭獎每注當彩池估算 (head = 8M 代表上期冇人中, 彩池滾存中)
+  const poolEst = latest.first > 8_000_000 ? latest.first : latest.total_fund || latest.first;
+  const critical = criticalPool();
+  const evNow = evAtPool(Math.max(poolEst, 8_000_000));
+  const tierList = prizeTiers();
+
   return (
     <div className="gen-wrap">
+      <Card title="🎁 金多寶 +EV 分析（彩池幾大先值得買？）" icon="🎁">
+        <div className="ev-grid">
+          <div className="ev-stat">
+            <span className="ev-label">目前彩池估算</span>
+            <b className="ev-value">{fmtMoney(poolEst)}</b>
+            <small>{latest.first <= 8_000_000 ? '上期冇人中 → 彩池滾存中' : '上期有人中 → 已清池'}</small>
+          </div>
+          <div className="ev-stat">
+            <span className="ev-label">單注 EV（假設頭獎獨中）</span>
+            <b className={`ev-value ${evNow >= 0 ? 'ev-pos' : 'ev-neg'}`}>{evNow >= 0 ? '+' : ''}${evNow.toFixed(2)}</b>
+            <small>固定獎 $0.38 + 彩池 $… − 成本 $10</small>
+          </div>
+          <div className="ev-stat ev-critical">
+            <span className="ev-label">臨界彩池（EV=0）</span>
+            <b className="ev-value">{fmtMoney(critical)}</b>
+            <small>彩池超過呢個數先有正 EV（獨中假設）</small>
+          </div>
+        </div>
+        <div className={`ev-banner ${evNow >= 0 ? 'ev-banner-pos' : 'ev-banner-neg'}`}>
+          {evNow >= 0
+            ? '🎯 目前彩池已超過臨界值 → 單注 EV 為正（但只係「獨中」假設，實際多人分獎 EV 會跌返負）'
+            : `⚠️ 目前彩池未夠臨界值（${fmtMoney(critical)}）→ 平時買 EV 負數，建議等大金多寶先落注`}
+        </div>
+        <div className="gen-note">
+          📐 <b>模型：</b>EV = 固定獎（六獎 $40 + 七獎 $20，唔受分獎影響）+ 頭獎彩池 ÷ 13,983,816（假設<b>獨中</b>）− 成本 $10。實際因為彩池分賬，多人中頭獎時每注派彩跌，真實 EV 會低過呢個估算。<b>結論：</b>平時買 EV 約 −$9.6（輸定），只有億元級金多寶先可能翻正 — 儲錢等大彩池買一次，永遠好過逢期買。
+          <br />📊 各獎級單注機率：{tierList.map(t => `${t.name} ${(t.prob * 100).toFixed(4)}%`).join(' · ')}
+        </div>
+      </Card>
+
       <Card title="💰 派彩走勢（每期頭獎/二獎每注派彩）" icon="💰">
         <div className="payout-latest">
           <span className="payout-draw">最新一期 <b>{latest.draw}</b>（{latest.date}）</span>
