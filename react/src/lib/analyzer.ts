@@ -100,6 +100,39 @@ export function singleTicketProb(target: number): number {
   return p;
 }
 
+// ── 全獎項精確解析解 (三變量超幾何) ──
+// 6 主 + 1 特別號攪珠: P(K=k, S=s) = C(6,k)·C(1,s)·C(42,6-k-s) / C(49,6)
+// 買單式 6 個號碼, 中 k 個正獎 + s 個特別號 (s ∈ {0,1})
+export interface PrizeTier {
+  name: string;
+  main: number;          // 中幾多個正獎
+  specialNeeded: boolean;// 要唔要中特別號
+  combos: number;        // 中獎組合數
+  prob: number;          // 單注機率
+  odds: number;          // 1 / prob
+}
+export function prizeTiers(): PrizeTier[] {
+  const tier = (name: string, k: number, s: number): PrizeTier => {
+    const combos = comb(6, k) * comb(1, s) * comb(42, 6 - k - s);
+    return { name, main: k, specialNeeded: s === 1, combos, prob: combos / TOTAL_COMBOS, odds: TOTAL_COMBOS / combos };
+  };
+  return [
+    tier('頭獎', 6, 0),
+    tier('二獎', 5, 1),
+    tier('三獎', 5, 0),
+    tier('四獎', 4, 1),
+    tier('五獎', 4, 0),
+    tier('六獎', 3, 1),
+    tier('七獎', 3, 0),
+  ];
+}
+
+// 單式一注總中獎機率 (七獎或以上)
+export function totalWinProb(): number {
+  const tiers = prizeTiers();
+  return tiers.reduce((s, t) => s + t.combos, 0) / TOTAL_COMBOS;
+}
+
 // ── 分析引擎 (純前端計算) ──
 // 近 N 期主號碼頻率 (動量信號: 熱門號碼近期狀態)
 export function recentFreq(draws: Draw[], window = 50): { num: number; count: number }[] {

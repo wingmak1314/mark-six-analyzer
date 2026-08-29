@@ -1,18 +1,24 @@
 // 自動核對 — 輸入飛 → 對比最新一期 → 計中獎
+// 附全獎項精確機率 (三變量超幾何: P(K=k,S=s) = C(6,k)C(1,s)C(42,6-k-s)/C(49,6))
 import { useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
+import { prizeTiers, totalWinProb } from '../lib/analyzer';
 import type { Draw } from '../lib/analyzer';
 
-const PRIZES: { match: string; prize: string; key: string }[] = [
-  { match: '6 個主號碼', prize: '最低 $800萬，視乎彩池', key: '頭獎' },
-  { match: '5 + 特別號', prize: '約 $100萬', key: '二獎' },
-  { match: '5 個主號碼', prize: '約 $8萬', key: '三獎' },
-  { match: '4 + 特別號', prize: '約 $3,000', key: '四獎' },
-  { match: '4 個主號碼', prize: '約 $300', key: '五獎' },
-  { match: '3 + 特別號', prize: '$40', key: '六獎' },
-  { match: '3 個主號碼', prize: '$20', key: '七獎' },
-];
+const PRIZE_AMOUNTS: Record<string, string> = {
+  '頭獎': '最低 $800萬，視乎彩池',
+  '二獎': '約 $100萬',
+  '三獎': '約 $8萬',
+  '四獎': '約 $3,000',
+  '五獎': '約 $300',
+  '六獎': '$40',
+  '七獎': '$20',
+};
+
+function fmtOdds(odds: number): string {
+  return odds >= 1_000_000 ? `1/${Math.round(odds / 1_000_000)}M` : `1/${Math.round(odds).toLocaleString()}`;
+}
 
 export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
   const [nums, setNums] = useState<string[]>(['', '', '', '', '', '']);
@@ -41,18 +47,19 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
     const spHit = mySpecial === latestDraw.special;
 
     // 獎級 (HKJC 規則): 主號碼 + 特別號 對應
-    let tier = '';
-    if (hits === 6) tier = '🎉 頭獎！';
-    else if (hits === 5 && spHit) tier = '🏆 二獎！';
-    else if (hits === 5) tier = '🥈 三獎！';
-    else if (hits === 4 && spHit) tier = '🥉 四獎！';
-    else if (hits === 4) tier = '💰 五獎！';
-    else if (hits === 3 && spHit) tier = '💵 六獎！';
-    else if (hits === 3) tier = '💷 七獎！';
-    else tier = '😢 冇中獎';
+    const tierKey = hits === 6 ? '頭獎'
+      : hits === 5 && spHit ? '二獎'
+      : hits === 5 ? '三獎'
+      : hits === 4 && spHit ? '四獎'
+      : hits === 4 ? '五獎'
+      : hits === 3 && spHit ? '六獎'
+      : hits === 3 ? '七獎'
+      : '';
+    const tierEmoji: Record<string, string> = { '頭獎': '🎉', '二獎': '🏆', '三獎': '🥈', '四獎': '🥉', '五獎': '💰', '六獎': '💵', '七獎': '💷' };
+    const tier = tierKey ? `${tierEmoji[tierKey]} ${tierKey}！` : '😢 冇中獎';
 
-    const prize = PRIZES.find(p => tier.includes(p.key));
-    setResult(`中 ${hits} 個主號碼${spHit ? ' + 特別號' : ''} → ${tier}${prize ? `（${prize.prize}）` : ''}`);
+    const amount = tierKey ? PRIZE_AMOUNTS[tierKey] : '';
+    setResult(`中 ${hits} 個主號碼${spHit ? ' + 特別號' : ''} → ${tier}${amount ? `（${amount}）` : ''}`);
   };
 
   const handleNum = (i: number, v: string) => {
@@ -60,6 +67,8 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
     next[i] = v.replace(/[^\d]/g, '').slice(0, 2);
     setNums(next);
   };
+
+  const tiers = prizeTiers();
 
   return (
     <Card title="🧾 自動核對 — 你買咗嘅飛中咗未？" icon="🧾">
@@ -87,11 +96,20 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
       {result && <div className="check-result">{result}</div>}
       <div className="check-prizes">
         <table>
-          <thead><tr><th>中獎條件</th><th>獎金</th></tr></thead>
+          <thead><tr><th>中獎條件</th><th>獎金</th><th>單注機率</th></tr></thead>
           <tbody>
-            {PRIZES.map(p => <tr key={p.match}><td>{p.match}</td><td>{p.prize}</td></tr>)}
+            {tiers.map(t => (
+              <tr key={t.name}>
+                <td>{t.name} — {t.main} 個主號碼{t.specialNeeded ? ' + 特別號' : ''}</td>
+                <td>{PRIZE_AMOUNTS[t.name]}</td>
+                <td>{fmtOdds(t.odds)}（{(t.prob * 100).toFixed(6)}%）</td>
+              </tr>
+            ))}
           </tbody>
         </table>
+        <div className="check-note">
+          📊 單式一注總中獎機率（七獎或以上）：<b className="hitrate-good">{(totalWinProb() * 100).toFixed(4)}%</b>（約每 {(1 / totalWinProb()).toFixed(1)} 注中一注）· 頭獎固定 1/13,983,816
+        </div>
       </div>
     </Card>
   );
