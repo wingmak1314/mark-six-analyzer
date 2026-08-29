@@ -110,19 +110,13 @@ export function recentFreq(draws: Draw[], window = 50): { num: number; count: nu
   return Object.entries(f).map(([num, count]) => ({ num: Number(num), count }));
 }
 
-// 每期 gaps (已X期未出) — 由指定 draw list 即時計, walk-forward 避免 look-ahead bias
-// gap = 0 表示最新一期出過; N = 從未出過
-export function makeGaps(draws: Draw[]): { num: number; gap: number }[] {
-  const N = draws.length;
-  const out: { num: number; gap: number }[] = [];
-  for (let n = 1; n <= 49; n++) {
-    let gap = N;  // 預設 = 從未出過
-    for (let i = 0; i < N; i++) {
-      if (draws[i].main.includes(n) || draws[i].special === n) { gap = i; break; }
-    }
-    out.push({ num: n, gap });
-  }
-  return out;
+// 共用: 計一個排序好嘅號碼陣入面有幾多對連號 (e.g. [5,6,18] → 1)
+// 歷史 ~46% 開獎含連號 — 統計預測/結構檢查/形狀計分都用呢個
+export function countConsec(nums: number[]): number {
+  const s = [...nums].sort((a, b) => a - b);
+  let c = 0;
+  for (let i = 0; i < s.length - 1; i++) if (s[i + 1] === s[i] + 1) c++;
+  return c;
 }
 
 // ── 統計學預測引擎 (StatsPredict 共用, display + walk-forward 同一引擎) ──
@@ -269,13 +263,7 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   picked = balance(picked);
 
   // 連號修正: 歷史 45.8% 開獎含連號 — 若完全冇連號, 換入一個相鄰號碼
-  const consecPairs = (arr: number[]) => {
-    const s2 = [...arr].sort((a, b) => a - b);
-    let c = 0;
-    for (let i = 0; i < s2.length - 1; i++) if (s2[i + 1] === s2[i] + 1) c++;
-    return c;
-  };
-  if (consecPairs(picked.map(x => x.num)) === 0 && picked.length >= top) {
+  if (countConsec(picked.map(x => x.num)) === 0 && picked.length >= top) {
     const inPool = new Set(picked.map(x => x.num));
     const adj = scores.filter(x => !inPool.has(x.num) && picked.some(t => Math.abs(t.num - x.num) === 1));
     if (adj.length) {
@@ -292,7 +280,7 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   const nums = picked.map(x => x.num).sort((a, b) => a - b);
   const odd = nums.filter(n => n % 2 === 1).length;
   const small = nums.filter(n => n <= 24).length;
-  const consec = consecPairs(nums);
+  const consec = countConsec(nums);
 
   return { nums, odd, small, consec, scores: picked, mean: mean.toFixed(1), std: std.toFixed(1) };
 }

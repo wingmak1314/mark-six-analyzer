@@ -1,6 +1,7 @@
 // 波色分析 — 全部 49 球固定波色 + 全歷史逐期分析
 import { useMemo, useState } from 'react';
 import { Card } from './Card';
+import { WaveBall } from './WaveBall';
 import type { Draw } from '../lib/analyzer';
 import {
   WAVE_COLORS,
@@ -17,19 +18,6 @@ interface Props {
 }
 
 type ColorCounts = Record<WaveColor, number>;
-
-function ColorBall({ n, special = false }: { n: number; special?: boolean }) {
-  const color = waveColor(n);
-  const info = WAVE_COLORS[color];
-  return (
-    <span
-      className={`wave-ball wave-${color}${special ? ' wave-special' : ''}`}
-      title={`${n}號 · ${info.label}${special ? ' · 特別號' : ''}`}
-    >
-      {n}
-    </span>
-  );
-}
 
 function pct(value: number, total: number): string {
   return total ? `${(value / total * 100).toFixed(1)}%` : '0.0%';
@@ -209,8 +197,8 @@ export function ColorAnalysis({ history }: Props) {
               <div className="color-table-row" key={d.draw}>
                 <b className="hist-draw">{d.draw}</b>
                 <span className="hist-date">{d.date}</span>
-                <span className="color-draw-balls">{d.main.map(n => <ColorBall key={n} n={n} />)}</span>
-                <span className="color-special-cell"><ColorBall n={d.special} special /></span>
+                <span className="color-draw-balls">{d.main.map(n => <WaveBall key={n} n={n} />)}</span>
+                <span className="color-special-cell"><WaveBall n={d.special} special /></span>
                 <span className="color-ratio"><b>紅 {counts.red}</b> · <b>藍 {counts.blue}</b> · <b>綠 {counts.green}</b></span>
               </div>
             );

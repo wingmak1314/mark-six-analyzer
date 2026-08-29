@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
+import { countConsec } from '../lib/analyzer';
 import type { Draw } from '../lib/analyzer';
 
 export function HistoryTable({ draws }: { draws: Draw[] }) {
@@ -78,8 +79,7 @@ export function HistoryTable({ draws }: { draws: Draw[] }) {
       <div className="history-table">
         {visible.map(d => {
           const sorted = [...d.main].sort((a, b) => a - b);
-          let cons = 0;
-          for (let i = 0; i < 5; i++) if (sorted[i + 1] === sorted[i] + 1) cons++;
+          const cons = countConsec(sorted);
           return (
             <div className="hist-row" key={d.draw}>
               <span className="hist-draw">{d.draw}</span>

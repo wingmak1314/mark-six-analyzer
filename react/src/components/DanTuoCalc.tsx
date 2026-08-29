@@ -2,17 +2,8 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-import { predictStatic } from '../lib/analyzer';
+import { predictStatic, comb, systemProb } from '../lib/analyzer';
 import type { DashboardData, Draw } from '../lib/analyzer';
-
-function comb(n: number, k: number): number {
-  if (k < 0 || k > n) return 0;
-  let r = 1;
-  for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
-  return Math.round(r);
-}
-
-const TOTAL = comb(49, 6);  // 13,983,816
 
 interface Props {
   data: DashboardData;
@@ -72,28 +63,7 @@ export function DanTuoCalc({ data, history }: Props) {
     const tickets = comb(n, slots);
     const cost = tickets * 10;
 
-    // 系統真實機率: P(至少一注中 target 個主號碼)
-    // X = 膽中幾多個, Y = 拖中幾多個 (所有注共用膽)
-    // 一注有 slots 個拖位, 要中 target 就需要中 z = target-x 個拖,
-    // 而 z 可行 iff z ∈ [max(0, slots-(n-y)), min(slots, y)]
-    // ⚠️ x >= target 時全部注都中 → 直接加 pX (唔可以 skip, 5+all 中 4/5 膽就係呢種)
-    const prob = (target: number) => {
-      let p = 0;
-      for (let x = 0; x <= Math.min(r, 6); x++) {
-        const z = target - x;
-        if (z > slots) continue;
-        const pX = comb(r, x) * comb(49 - r, 6 - x) / TOTAL;
-        if (pX === 0) continue;
-        if (z <= 0) { p += pX; continue; }
-        for (let y = 0; y <= Math.min(6 - x, n); y++) {
-          const pY = comb(n, y) * comb(49 - r - n, 6 - x - y) / comb(49 - r, 6 - x);
-          if (pY === 0) continue;
-          if (z >= Math.max(0, slots - (n - y)) && z <= Math.min(slots, y)) p += pX * pY;
-        }
-      }
-      return Math.min(p, 1);
-    };
-
+    // 系統真實機率: P(至少一注中 target 個主號碼) — 共用 analyzer 嘅 systemProb
     // 若膽全中 (X = r): 系統中 target 個嘅條件機率
     const probAll = (target: number) => {
       const z = target - r;
@@ -109,7 +79,7 @@ export function DanTuoCalc({ data, history }: Props) {
 
     return {
       r, n, tickets, cost,
-      p3: prob(3), p4: prob(4), p5: prob(5), p6: prob(6),
+      p3: systemProb(r, n, 3), p4: systemProb(r, n, 4), p5: systemProb(r, n, 5), p6: systemProb(r, n, 6),
       // 若果膽全中 → 中 5 個嘅條件機率 (系統層面, 至少一注)
       opt5: probAll(5),
     };

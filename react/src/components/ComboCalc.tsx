@@ -2,13 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-
-function comb(n: number, k: number): number {
-  if (k < 0 || k > n) return 0;
-  let r = 1;
-  for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1);
-  return Math.round(r);
-}
+import { comb, TOTAL_COMBOS } from '../lib/analyzer';
 
 const PRICE = 10;  // 每注 $10
 
@@ -25,7 +19,7 @@ export function ComboCalc() {
     const k = selected.length;
     const tickets = comb(k, 6);
     const cost = tickets * PRICE;
-    const T = 13983816;
+    const T = TOTAL_COMBOS;
     // 中獎機率 (系統層面): 開出 6 個入面有幾多個喺你揀嘅 k 個入面
     const jackpot = tickets / T;
     const p5 = (comb(k, 5) * (49 - k) + comb(k, 6)) / T;             // ≥5 個 (三獎或以上)

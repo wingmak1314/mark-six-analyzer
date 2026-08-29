@@ -39,6 +39,12 @@ export function wavePattern(counts: Record<WaveColor, number>): string {
   return WAVE_ORDER.map(color => `${waveLabel(color).replace('波', '')}${counts[color]}`).join(' ');
 }
 
+// 顯示用波色組合文字 (例如 「紅2 藍2 綠2」) — 固定紅藍綠順序
+export function waveCombo(nums: number[]): string {
+  const counts = countWaveColors(nums);
+  return `${counts.red}紅 ${counts.blue}藍 ${counts.green}綠`;
+}
+
 export function emptyWaveCounts(): Record<WaveColor, number> {
   return { red: 0, blue: 0, green: 0 };
 }

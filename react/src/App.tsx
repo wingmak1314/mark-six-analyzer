@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDashboard, usePrediction, useHistory } from './hooks/useMarksix';
-import { predictStatic } from './lib/analyzer';
+import { predictStatic, countConsec } from './lib/analyzer';
 import type { Draw } from './lib/analyzer';
-import { waveColor, waveLabel, type WaveColor } from './lib/colors';
+import { waveColor, waveLabel, waveCombo } from './lib/colors';
+import { WaveBall } from './components/WaveBall';
 import { Ball } from './components/Ball';
 import { Card } from './components/Card';
 import { BarChart } from './components/BarChart';
@@ -47,23 +48,6 @@ function StatsTable({ title, icon, headers, rows, renderRow }: {
 function ComboBalls({ nums }: { nums: string }) {
   const parts = nums.split(',').map(Number);
   return <span className="hist-balls">{parts.map(n => <Ball key={n} n={n} cls="red" />)}</span>;
-}
-
-// 波色波 (官方紅/藍/綠) — AI 推薦 7 字主打用
-function WaveBall({ n, size = '', special = false }: { n: number; size?: string; special?: boolean }) {
-  const color = waveColor(n);
-  return (
-    <span className={`wave-ball wave-${color} ${size}${special ? ' wave-special' : ''}`} title={`${n}號 · ${waveLabel(color)}${special ? ' · 特別號' : ''}`}>
-      {n}
-    </span>
-  );
-}
-
-// 波色組合文字 (例如 「紅2 藍2 綠2」)
-function waveCombo(nums: number[]): string {
-  const counts = { red: 0, blue: 0, green: 0 } as Record<WaveColor, number>;
-  for (const n of nums) counts[waveColor(n)]++;
-  return `${counts.red}紅 ${counts.blue}藍 ${counts.green}綠`;
 }
 
 function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard>['data']> }) {
@@ -277,8 +261,7 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
             const sorted = [...top6].sort((a, b) => a - b);
             const odd = top6.filter(n => n % 2 === 1).length;
             const small = top6.filter(n => n <= 24).length;
-            let cons = 0;
-            for (let i = 0; i < sorted.length - 1; i++) if (sorted[i + 1] === sorted[i] + 1) cons++;
+            const cons = countConsec(sorted);
             return <span>⚖️ 結構：{odd}奇{6 - odd}偶 · {small}細{6 - small}大 · 連號{cons}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>;
           })()}
         </div>

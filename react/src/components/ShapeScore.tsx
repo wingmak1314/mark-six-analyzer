@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
+import { countConsec } from '../lib/analyzer';
 import type { Draw } from '../lib/analyzer';
 
 interface Props {
@@ -36,8 +37,7 @@ export function ShapeScore({ history }: Props) {
       const sum = s.reduce((a, b) => a + b, 0);
       const b = `${Math.floor(sum / 20) * 20}-${Math.floor(sum / 20) * 20 + 19}`;
       sumB[b] = (sumB[b] || 0) + 1;
-      let c = 0;
-      for (let i = 0; i < 5; i++) if (s[i + 1] === s[i] + 1) c++;
+      const c = countConsec(s);
       consec[c] = (consec[c] || 0) + 1;
       const zs = new Set(s.map(n => n <= 10 ? 1 : n <= 20 ? 2 : n <= 30 ? 3 : n <= 40 ? 4 : 5));
       zones[zs.size] = (zones[zs.size] || 0) + 1;
@@ -68,8 +68,7 @@ export function ShapeScore({ history }: Props) {
     const odd = s.filter(n => n % 2 === 1).length;
     const small = s.filter(n => n <= 24).length;
     const sum = s.reduce((a, b) => a + b, 0);
-    let c = 0;
-    for (let i = 0; i < 5; i++) if (s[i + 1] === s[i] + 1) c++;
+    const c = countConsec(s);
     const zs = new Set(s.map(n => n <= 10 ? 1 : n <= 20 ? 2 : n <= 30 ? 3 : n <= 40 ? 4 : 5)).size;
     const ts = new Set(s.map(n => n % 10)).size;
     const sumBucket = `${Math.floor(sum / 20) * 20}-${Math.floor(sum / 20) * 20 + 19}`;
