@@ -20,6 +20,7 @@ import { HitRate } from './components/HitRate';
 import { PayoutTrend } from './components/PayoutTrend';
 import { TrendChart } from './components/TrendChart';
 import { BetCalc } from './components/BetCalc';
+import { DanTuoCompare } from './components/DanTuoCompare';
 import { PredictLab } from './components/PredictLab';
 import { ColorAnalysis } from './components/ColorAnalysis';
 import './App.css';
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'tongji' | 'colors' | 'history' | 'predict' | 'statspredict' | 'predictlab' | 'trend' | 'payout' | 'generator' | 'betcalc' | 'checker';
+type Tab = 'dashboard' | 'tongji' | 'colors' | 'history' | 'predict' | 'statspredict' | 'predictlab' | 'trend' | 'payout' | 'generator' | 'betcalc' | 'dantuocmp' | 'checker';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -372,6 +373,7 @@ function MainApp() {
           {nav('payout', '💰 派彩走勢')}
           {nav('generator', '🎲 選號器')}
           {nav('betcalc', '🧮 投注計算')}
+          {nav('dantuocmp', '🎯 膽拖比較')}
           {nav('checker', '🧾 核對')}
         </nav>
         <button className="theme-toggle" onClick={() => setDark(d => !d)} aria-label="切換深色模式" title={dark ? '轉日間模式' : '轉黑夜模式'}>
@@ -421,7 +423,13 @@ function MainApp() {
       {tab === 'predictlab' && <PredictLab data={data} history={history.data || []} />}
 
       {tab === 'betcalc' && (
-        <BetCalc data={data} history={history.data || []} />
+        <BetCalc />
+      )}
+
+      {tab === 'dantuocmp' && (
+        <div className="gen-wrap">
+          <DanTuoCompare data={data} />
+        </div>
       )}
 
       {tab === 'predict' && (

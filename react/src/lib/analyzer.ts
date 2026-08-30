@@ -50,7 +50,7 @@ export interface PredictResult {
   based_on: string;
 }
 
-// ── 共用機率數學 (ComboCalc / DanTuoCalc / BudgetPlanner 共用) ──
+// ── 共用機率數學 (ComboCalc / DanTuoCompare / BudgetPlanner 共用) ──
 export function comb(n: number, k: number): number {
   if (k < 0 || k > n) return 0;
   let r = 1;
@@ -61,7 +61,7 @@ export function comb(n: number, k: number): number {
 export const TOTAL_COMBOS = comb(49, 6);  // 13,983,816
 
 // 膽拖系統機率: r 膽 + n 拖, P(成個系統至少一注中 target 個主號碼)
-// 同 DanTuoCalc 嘅 prob() 一致 — BudgetPlanner 重用, 唔可以兩套數學
+// 同 DanTuoCompare 用同一數學 — 唔可以兩套
 // ⚠️ 陷阱: 當 x >= target (膽中嘅已經夠 target), 全部注都中 → 直接加 pX,
 //    唔可以 skip (z<0 唔代表冇中 — 係中多過 target)
 export function systemProb(r: number, n: number, target: number): number {

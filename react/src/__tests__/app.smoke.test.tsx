@@ -107,11 +107,11 @@ describe('六合彩 App smoke', () => {
     }
   }, 20000);
 
-  it('tab 精簡: 12 個 tab, 冇重複 (AI 對比已刪, 計算+膽拖合併, 波色新增)', async () => {
+  it('tab 精簡: 13 個 tab, 冇重複 (AI 對比已刪, 計算+膽拖合併, 波色新增, 膽拖比較新增)', async () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     const tabs = [...document.querySelectorAll('.nav-btn')].map(b => b.textContent || '');
-    expect(tabs.length).toBe(12);
+    expect(tabs.length).toBe(13);
     // 重複嘅已移除
     expect(bodyText()).not.toContain('AI 對比');
     expect(bodyText()).not.toContain('🧮 計算器');
@@ -120,19 +120,21 @@ describe('六合彩 App smoke', () => {
     expect(bodyText()).toContain('🧮 投注計算');
     // 波色 tab 存在
     expect(bodyText()).toContain('🎨 波色分析');
+    // 膽拖比較 tab 存在
+    expect(bodyText()).toContain('🎯 膽拖比較');
     // 走勢 tab 有 TrendChart + TrendAnalysis
     fireEvent.click(screen.getByText('📈 走勢'));
     await screen.findByText(/號碼走勢圖/, {}, { timeout: 8000 });
     expect(bodyText()).toContain('單雙比例');
   }, 20000);
 
-  it('投注計算 tab: 複式 ↔ 膽拖切換', async () => {
+  it('投注計算 tab: 複式 ↔ 縮水輪切換', async () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     fireEvent.click(screen.getByText('🧮 投注計算'));
     await screen.findByText(/複式注數計算器/, {}, { timeout: 8000 });
-    fireEvent.click(screen.getByText('🎱 膽拖計算'));
-    await screen.findByText(/膽拖計算器/, {}, { timeout: 8000 });
-    expect(bodyText()).toContain('AI 自動揀');
+    fireEvent.click(screen.getByText('🌀 縮水輪'));
+    await screen.findByText(/注數大減/, {}, { timeout: 8000 });
+    expect(bodyText()).toContain('縮水輪');
   }, 20000);
 });
