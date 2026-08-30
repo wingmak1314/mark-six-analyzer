@@ -129,9 +129,11 @@ function TongjiView({ data }: { data: NonNullable<ReturnType<typeof useDashboard
 function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof useDashboard>['data']; history: Draw[]; onGoPredict: () => void }) {
   if (!data) return null;
   // 7 字主打 (穩定核心, 冇 jitter — 每日數據更新先會變)
+  // ⚠️ main6 用 reasons top6 (AI 優先次序), 唔係 main10.slice(0,6) — 兩者排序唔同
   const top7 = useMemo(() => {
     const p = predictStatic(data, 0);
-    return { main6: p.main10.slice(0, 6), special: p.special, target: p.target_draw, reasons: p.reasons.slice(0, 6) };
+    const main6 = p.reasons.slice(0, 6).map(r => r.num).sort((a, b) => a - b);
+    return { main6, special: p.special, target: p.target_draw, reasons: p.reasons.slice(0, 6) };
   }, [data]);
   return (
     <>
@@ -236,19 +238,26 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
     return Math.round(t);
   }, [dtBankers, dtTrotters]);
   if (!shown) return null;
+  // 7字主打 = AI 優先次序頭6個 (reasons top6) — 同下面「點解揀」列表頭6個一致
+  // ⚠️ 唔可以用 main10.slice(0,6): main10 排序過, 同 AI 優先次序唔同, 會同 reasons 對唔上
+  const main6 = useMemo(() => {
+    if (!shown) return [];
+    const top = shown.reasons.slice(0, 6).map(r => r.num);
+    return top.sort((a, b) => a - b);
+  }, [shown]);
   return (
     <>
       <section className="hero predict-hero">
         <div className="hero-draw">🎯 AI 大數據推薦</div>
         <div className="hero-date">目標: {shown.target_draw} · 基於 {shown.based_on} · 🎨 波色平衡（歷史 ~紅35/藍33/綠33%）</div>
         <div className="hero-balls">
-          {nums.slice(0, 6).map(n => <WaveBall key={n} n={n} size="lg" />)}
+          {main6.map(n => <WaveBall key={n} n={n} size="lg" />)}
           <span className="plus">+</span>
           <WaveBall n={shown.special} size="lg" special />
         </div>
         <div className="hero-meta">
           <span>🎯 7 字主打：6 主號 + 1 特別號</span>
-          <span>🎨 波色：{waveCombo(nums.slice(0, 6))} · 特別號 {waveLabel(waveColor(shown.special))}波</span>
+          <span>🎨 波色：{waveCombo(main6)} · 特別號 {waveLabel(waveColor(shown.special))}波</span>
           <span>⭐ 特別號建議：{shown.special_reason}</span>
         </div>
         <div className="hero-meta">
@@ -257,10 +266,9 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
         </div>
         <div className="hero-meta">
           {(() => {
-            const top6 = nums.slice(0, 6);
-            const sorted = [...top6].sort((a, b) => a - b);
-            const odd = top6.filter(n => n % 2 === 1).length;
-            const small = top6.filter(n => n <= 24).length;
+            const sorted = [...main6].sort((a, b) => a - b);
+            const odd = main6.filter(n => n % 2 === 1).length;
+            const small = main6.filter(n => n <= 24).length;
             const cons = countConsec(sorted);
             return <span>⚖️ 結構：{odd}奇{6 - odd}偶 · {small}細{6 - small}大 · 連號{cons}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>;
           })()}
