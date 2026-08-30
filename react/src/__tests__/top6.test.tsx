@@ -4,7 +4,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import App from '../App';
-import { analyzeStatic, predictStatic } from '../lib/analyzer';
 
 const history = JSON.parse(readFileSync(join(process.cwd(), '..', 'history_full.json'), 'utf8'));
 beforeAll(() => {

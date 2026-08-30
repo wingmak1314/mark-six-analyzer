@@ -45,23 +45,50 @@ describe('黑夜模式', () => {
 });
 
 describe('選號器去重', () => {
-  it('排除過去10期 (池得6個) → 生成唔重複 + 警告', async () => {
+  it('排除過去10期 (池得6個) → 自動放寬 + 10組全部唔重複', async () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     fireEvent.click(screen.getByText('🎲 選號器'));
     await screen.findByText(/智能隨機選號器/, {}, { timeout: 8000 });
+    // 設 10 組 (複現用戶「生成10組但全部一樣」場景) — 第 3 個 select = 生成組數
+    const selects = document.querySelectorAll('.gen-opt select');
+    fireEvent.change(selects[2], { target: { value: '10' } });
+    // 確認排除10期
+    const numInput = document.querySelector('.gen-num') as HTMLInputElement;
+    expect(numInput.value).toBe('10');
     // 生成
     fireEvent.click(screen.getByText('🎯 生成號碼'));
-    await new Promise(r => setTimeout(r, 400));
+    await new Promise(r => setTimeout(r, 600));
     // 所有生成嘅組合應該唯一 (冇重複行)
     const rows = [...document.querySelectorAll('.gen-set')];
+    expect(rows.length).toBe(10);  // 真係有10組
     const sets = rows.map(r => {
       const balls = r.querySelectorAll('.ball');
       return [...balls].map(b => b.textContent).sort().join(',');
     });
     const unique = new Set(sets);
-    expect(unique.size).toBe(sets.length);  // 冇重複
-    // 有警告 (池太細)
-    expect(document.body.textContent || '').toContain('唔重複組合');
+    expect(unique.size).toBe(10);  // 10組全部唔重複
+    // 有自動放寬提示 (池太細自動減排除期數)
+    expect(document.body.textContent || '').toContain('自動放寬');
+  }, 20000);
+
+  it('唔排除 (池49個) → 10組全部唔重複', async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
+    fireEvent.click(screen.getByText('🎲 選號器'));
+    await screen.findByText(/智能隨機選號器/, {}, { timeout: 8000 });
+    // 關掉排除
+    fireEvent.click(screen.getByRole('checkbox'));
+    const selects = document.querySelectorAll('.gen-opt select');
+    fireEvent.change(selects[2], { target: { value: '10' } });
+    fireEvent.click(screen.getByText('🎯 生成號碼'));
+    await new Promise(r => setTimeout(r, 600));
+    const rows = [...document.querySelectorAll('.gen-set')];
+    const sets = rows.map(r => {
+      const balls = r.querySelectorAll('.ball');
+      return [...balls].map(b => b.textContent).sort().join(',');
+    });
+    expect(new Set(sets).size).toBe(sets.length);  // 冇重複
+    expect(sets.length).toBe(10);
   }, 20000);
 });

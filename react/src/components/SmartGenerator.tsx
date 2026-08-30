@@ -17,26 +17,45 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
   const [count, setCount] = useState(5);  // 生成幾多組
   const [results, setResults] = useState<number[][]>([]);
 
-  // 過去 N 期開過嘅號碼 (排除池) — 主號碼 + 特別號都計
-  const recentNums = useMemo(() => {
-    if (!excludeLast) return new Set<number>();
-    const src = history && history.length > 0 ? history : (lastNumbers ? [{ main: lastNumbers, special: 0 } as Draw] : []);
-    const n = Math.min(Math.max(1, excludeWeeks), src.length);
-    const s = new Set<number>();
-    for (let i = 0; i < n; i++) {
-      for (const m of src[i].main) s.add(m);
-      if (src[i].special) s.add(src[i].special);
+  // 自動放寬: 排除太多令到池太細 (唔夠生成唔重複組合) → 自動減排除期數
+  // 用戶要求「唔可以全部一樣」— 就算排除 10 期得 6 個號碼, 都應該自動調整到有變化
+  const effectiveConfig = useMemo(() => {
+    if (!excludeLast) return { weeks: excludeWeeks, autoReduced: false, poolSize: 49 };
+    let weeks = excludeWeeks;
+    let poolSize = 0;
+    while (weeks >= 1) {
+      const s = new Set<number>();
+      const src = history && history.length > 0 ? history : [];
+      const n = Math.min(weeks, src.length);
+      for (let i = 0; i < n; i++) {
+        for (const m of src[i].main) s.add(m);
+        if (src[i].special) s.add(src[i].special);
+      }
+      poolSize = 49 - s.size;
+      // 需要至少 10 個號碼先有 C(10,6)=210 種組合, 足夠生成多組唔重複
+      if (poolSize >= 10) break;
+      weeks--;
     }
-    return s;
-  }, [excludeLast, excludeWeeks, history, lastNumbers]);
+    return { weeks, autoReduced: weeks < excludeWeeks, poolSize };
+  }, [excludeLast, excludeWeeks, history]);
 
   const generate = () => {
     const sets: number[][] = [];
     const seen = new Set<string>();
-    // 排除後剩低可揀號碼
+    // 用自動調整後嘅排除期數
+    const effWeeks = effectiveConfig.weeks;
+    const src = history && history.length > 0 ? history : (lastNumbers ? [{ main: lastNumbers, special: 0 } as Draw] : []);
+    const excludeSet = new Set<number>();
+    if (excludeLast) {
+      const n = Math.min(effWeeks, src.length);
+      for (let i = 0; i < n; i++) {
+        for (const m of src[i].main) excludeSet.add(m);
+        if (src[i].special) excludeSet.add(src[i].special);
+      }
+    }
     const basePool: number[] = [];
-    for (let n = 1; n <= 49; n++) if (!excludeLast || !recentNums.has(n)) basePool.push(n);
-    for (let s = 0; s < count * 8; s++) {  // 8 倍嘗試, 用盡先停
+    for (let n = 1; n <= 49; n++) if (!excludeLast || !excludeSet.has(n)) basePool.push(n);
+    for (let s = 0; s < count * 20; s++) {  // 20 倍嘗試, 用盡先停
       const pool = [...basePool];
       if (pool.length < 6) break;
       // 洗牌
@@ -91,14 +110,13 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
   };
 
   const maxCombos = useMemo(() => {
-    const basePool: number[] = [];
-    for (let n = 1; n <= 49; n++) if (!excludeLast || !recentNums.has(n)) basePool.push(n);
-    if (basePool.length < 6) return 0;
+    const poolSize = effectiveConfig.poolSize;
+    if (poolSize < 6) return 0;
     // 近似上限: C(pool, 6), 但受限於單雙/大細比例
     let c = 1;
-    for (let i = 0; i < 6; i++) c = c * (basePool.length - i) / (i + 1);
+    for (let i = 0; i < 6; i++) c = c * (poolSize - i) / (i + 1);
     return Math.round(c);
-  }, [excludeLast, recentNums]);
+  }, [effectiveConfig]);
 
   const resultsShown = results.length;
 
@@ -111,6 +129,11 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
             排除過去 <input type="number" min={1} max={50} value={excludeWeeks} disabled={!excludeLast}
               onChange={e => setExcludeWeeks(Number(e.target.value))} className="gen-num" /> 期開過嘅號碼
           </label>
+          {excludeLast && effectiveConfig.autoReduced && (
+            <div className="gen-note" style={{ borderColor: 'rgba(255,149,0,.4)', color: 'var(--text-2)', margin: 0 }}>
+              ⚠️ 排除 {excludeWeeks} 期得返 {effectiveConfig.poolSize} 個號碼（唔夠變化）— 已自動放寬到排除 <b>{effectiveConfig.weeks}</b> 期，先夠生成唔重複組合
+            </div>
+          )}
           <label className="gen-opt">
             單雙比例
             <select value={oddEven} onChange={e => setOddEven(e.target.value as any)}>
