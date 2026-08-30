@@ -23,22 +23,23 @@ export function StatsPredict({ data, history }: Props) {
   );
 
   // 回顧實測: 第一行 = 用而家顯示緊嗰組直接對最新一期 (同你睇緊嘅完全一致)
-  // 之後每行 = 用當時數據 (唔偷睇未來) 行同一個引擎 + 同一抖動種子
+  // 之後每行 = 用當時數據 (唔偷睇未來) 行同一個引擎
+  // ⚠️ 每行用唔同抖動種子 (seed = reroll + i) → 唔會好似以前咁每行都係同一組熱號, 更貼近真實「每次重新生成」
   const hitResult = useMemo(() => {
     if (history.length < 2) return null;
-    const rows: { draw: string; nums: number[]; hits: number; hitNums: number[] }[] = [];
+    const rows: { draw: string; nums: number[]; actualNums: number[]; actualSpecial: number; hits: number; hitNums: number[] }[] = [];
     // 第一行: 而家呢組直接對最新一期
     const actual0 = history[0];
     const hitNums0 = result.nums.filter(n => actual0.main.includes(n));
-    rows.push({ draw: actual0.draw, nums: result.nums, hits: hitNums0.length, hitNums: hitNums0 });
+    rows.push({ draw: actual0.draw, nums: result.nums, actualNums: actual0.main, actualSpecial: actual0.special, hits: hitNums0.length, hitNums: hitNums0 });
     // 其餘行: walk-forward (每期用當時數據 — 完整重算, 唔偷睇未來)
     for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
       const past = history.slice(i);
       const pastData = analyzeStatic(past);  // 所有統計 (freq/gaps/共現/動量) 都係由當時 slice 重算
-      const pick = statsPick(pastData, { top: 8, jitter: 4, seed: reroll });  // 同一抖動種子
+      const pick = statsPick(pastData, { top: 8, jitter: 4, seed: reroll + i });  // 每行唔同種子 → 組合多啲變化
       const actual = history[i - 1];
       const hitNums = pick.nums.filter(n => actual.main.includes(n));
-      rows.push({ draw: actual.draw, nums: pick.nums, hits: hitNums.length, hitNums });
+      rows.push({ draw: actual.draw, nums: pick.nums, actualNums: actual.main, actualSpecial: actual.special, hits: hitNums.length, hitNums });
     }
     const total = rows.reduce((s, r) => s + r.hits, 0);
     const avg = rows.length ? (total / rows.length).toFixed(2) : '0';
@@ -89,21 +90,34 @@ export function StatsPredict({ data, history }: Props) {
           </div>
           <div className="hitrate-table">
             {hitResult.rows.map(r => (
-              <div className="hitrate-row" key={r.draw}>
+              <div className="hitrate-row hitrate-row-2line" key={r.draw}>
                 <span className="hist-draw">{r.draw}</span>
-                <span className="hitrate-nums">
-                  {r.nums.map(n => (
-                    <span key={n} className={r.hitNums.includes(n) ? 'hitrate-hit' : 'hitrate-miss'}>
-                      <Ball n={n} cls={r.hitNums.includes(n) ? 'red' : 'gray'} />
+                <div className="hitrate-cell">
+                  <div className="hitrate-line">
+                    <span className="hitrate-role">🔮 預測</span>
+                    <span className="hitrate-nums">
+                      {r.nums.map(n => (
+                        <span key={n} className={r.hitNums.includes(n) ? 'hitrate-hit' : 'hitrate-miss'}>
+                          <Ball n={n} cls={r.hitNums.includes(n) ? 'red' : 'gray'} />
+                        </span>
+                      ))}
                     </span>
-                  ))}
-                </span>
+                  </div>
+                  <div className="hitrate-line">
+                    <span className="hitrate-role">🎱 開出</span>
+                    <span className="hitrate-nums">
+                      {r.actualNums.map(n => <Ball key={n} n={n} cls="red" />)}
+                      <span className="plus">+</span>
+                      <Ball n={r.actualSpecial} cls="sp" />
+                    </span>
+                  </div>
+                </div>
                 <span className={`hitrate-count ${r.hits >= 2 ? 'hitrate-good' : ''}`}>中{r.hits}個</span>
               </div>
             ))}
           </div>
           <div className="gen-note">
-            💡 <b>點樣計：</b>第一行 = 你而家睇緊嗰組直接對最新一期（紅色 = 中咗，灰色 = 冇中）；其餘行 = 模擬「喺過去每一期之前用當時數據行同一個統計引擎（用返而家呢套抖動種子）」。
+            💡 <b>點樣計：</b>每行分兩層 — <b>🔮 預測</b> = 嗰期嘅 AI 預測號碼（紅色 = 中咗，灰色 = 冇中）；<b>🎱 開出</b> = 嗰期實際開獎號碼（黃色 = 特別號）。對比之下就清楚見到「預測 vs 實際」。第一行用你而家睇緊嗰組；其餘行 = 喺過去每一期之前用當時數據行同一個統計引擎（每行用唔同抖動種子，模擬次次重新生成）。
             <br />⚠️ 六合彩每期獨立，命中率同隨機期望（8×6/49 ≈ 0.98 個）差唔多係正常 — 呢個統計係幫你了解「統計引擎嘅實際表現」，唔代表未來會中。
           </div>
         </Card>
