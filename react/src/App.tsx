@@ -318,9 +318,21 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
 function MainApp() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [predictReroll, setPredictReroll] = useState(0);  // AI推薦 reroll seed (命中率共用, 保持一致)
+  const [dark, setDark] = useState<boolean>(() => {
+    // 初始: 跟 localStorage, 冇就跟系統偏好
+    const saved = localStorage.getItem('ms-theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+  });
   const dashboard = useDashboard();
   const prediction = usePrediction();
   const history = useHistory();
+
+  // 黑夜模式切換 → 掛 data-theme attribute + 存偏好
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    localStorage.setItem('ms-theme', dark ? 'dark' : 'light');
+  }, [dark]);
 
   if (dashboard.isLoading) return (
     <div className="loading">
@@ -354,6 +366,9 @@ function MainApp() {
           {nav('betcalc', '🧮 投注計算')}
           {nav('checker', '🧾 核對')}
         </nav>
+        <button className="theme-toggle" onClick={() => setDark(d => !d)} aria-label="切換深色模式" title={dark ? '轉日間模式' : '轉黑夜模式'}>
+          {dark ? '☀️' : '🌙'}
+        </button>
       </header>
 
       <Countdown />

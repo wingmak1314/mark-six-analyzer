@@ -32,20 +32,18 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
 
   const generate = () => {
     const sets: number[][] = [];
-    for (let s = 0; s < count; s++) {
-      const pool: number[] = [];
-      for (let n = 1; n <= 49; n++) {
-        if (excludeLast && recentNums.has(n)) continue;
-        pool.push(n);
-      }
-      if (pool.length < 6) { sets.push([]); continue; }
-
+    const seen = new Set<string>();
+    // 排除後剩低可揀號碼
+    const basePool: number[] = [];
+    for (let n = 1; n <= 49; n++) if (!excludeLast || !recentNums.has(n)) basePool.push(n);
+    for (let s = 0; s < count * 8; s++) {  // 8 倍嘗試, 用盡先停
+      const pool = [...basePool];
+      if (pool.length < 6) break;
       // 洗牌
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
-
       // 揀 6 個, 套用單雙/大細比例
       const picked: number[] = [];
       let tries = 0;
@@ -54,7 +52,6 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
         const idx = Math.floor(Math.random() * pool.length);
         const n = pool[idx];
         if (picked.includes(n)) continue;
-        // 單雙比例檢查
         if (oddEven !== 'any') {
           const [oddTarget] = oddEven.split(':').map(Number);
           const curOdd = picked.filter(x => x % 2 === 1).length;
@@ -62,7 +59,6 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
           if (isOdd && curOdd >= oddTarget) continue;
           if (!isOdd && picked.length - curOdd >= 6 - oddTarget) continue;
         }
-        // 大細比例檢查 (1-24 細, 25-49 大)
         if (bigSmall !== 'any') {
           const [smallTarget] = bigSmall.split(':').map(Number);
           const curSmall = picked.filter(x => x <= 24).length;
@@ -72,7 +68,6 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
         }
         picked.push(n);
       }
-      // 條件太緊 (排除後 pool 唔夠平衡) → 自動放寬, 用剩餘號碼補滿 6 個
       if (picked.length < 6) {
         const rest = pool.filter(n => !picked.includes(n));
         for (let i = rest.length - 1; i > 0; i--) {
@@ -84,10 +79,28 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
           picked.push(n);
         }
       }
-      sets.push([...picked].sort((a, b) => a - b));
+      if (picked.length !== 6) continue;
+      const sorted = [...picked].sort((a, b) => a - b);
+      const key = sorted.join(',');
+      if (seen.has(key)) continue;  // 跳過重複組合
+      seen.add(key);
+      sets.push(sorted);
+      if (sets.length >= count) break;
     }
     setResults(sets);
   };
+
+  const maxCombos = useMemo(() => {
+    const basePool: number[] = [];
+    for (let n = 1; n <= 49; n++) if (!excludeLast || !recentNums.has(n)) basePool.push(n);
+    if (basePool.length < 6) return 0;
+    // 近似上限: C(pool, 6), 但受限於單雙/大細比例
+    let c = 1;
+    for (let i = 0; i < 6; i++) c = c * (basePool.length - i) / (i + 1);
+    return Math.round(c);
+  }, [excludeLast, recentNums]);
+
+  const resultsShown = results.length;
 
   return (
     <div className="gen-wrap">
@@ -127,6 +140,11 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
 
         {results.length > 0 && (
           <div className="gen-results">
+            {resultsShown < count && (
+              <div className="gen-note" style={{ borderColor: 'rgba(255,149,0,.4)', color: 'var(--text-2)' }}>
+                ⚠️ 排除後得 {maxCombos} 種唔重複組合，只生成到 {resultsShown} 組（要更多就減少排除期數）
+              </div>
+            )}
             {results.map((set, i) => (
               <div className="gen-set" key={i}>
                 <span className="gen-set-label">第 {i + 1} 組</span>

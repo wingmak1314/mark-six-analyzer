@@ -1,0 +1,67 @@
+// 黑夜模式 + 選號器去重測試
+import { describe, it, expect, beforeAll } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import App from '../App';
+
+const history = JSON.parse(readFileSync(join(process.cwd(), '..', 'history_full.json'), 'utf8'));
+
+beforeAll(() => {
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    const data = url.includes('payouts.json')
+      ? { source: 'hkjc', updated: 'x', count: 1, payouts: [{ draw: '26/095', date: '29/08/2026', first: 8000000, second: 0, turnover: 18000000, total_fund: 25000000 }] }
+      : history;
+    return { ok: true, json: async () => data } as Response;
+  }) as unknown as typeof fetch;
+});
+
+describe('黑夜模式', () => {
+  it('預設跟系統/light, 切換掣加 data-theme', async () => {
+    localStorage.clear();
+    render(<App />);
+    await screen.findByText(/第 \d+\/\d+ 期/, {}, { timeout: 8000 });
+    // 有切換掣
+    const toggle = document.querySelector('.theme-toggle');
+    expect(toggle).toBeTruthy();
+    // 切換 → dark
+    fireEvent.click(toggle!);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(localStorage.getItem('ms-theme')).toBe('dark');
+    // 再切 → light
+    fireEvent.click(toggle!);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('ms-theme')).toBe('light');
+  }, 20000);
+
+  it('載入時讀 localStorage 偏好', async () => {
+    localStorage.setItem('ms-theme', 'dark');
+    render(<App />);
+    await screen.findByText(/第 \d+\/\d+ 期/, {}, { timeout: 8000 });
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    localStorage.clear();
+  }, 20000);
+});
+
+describe('選號器去重', () => {
+  it('排除過去10期 (池得6個) → 生成唔重複 + 警告', async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
+    fireEvent.click(screen.getByText('🎲 選號器'));
+    await screen.findByText(/智能隨機選號器/, {}, { timeout: 8000 });
+    // 生成
+    fireEvent.click(screen.getByText('🎯 生成號碼'));
+    await new Promise(r => setTimeout(r, 400));
+    // 所有生成嘅組合應該唯一 (冇重複行)
+    const rows = [...document.querySelectorAll('.gen-set')];
+    const sets = rows.map(r => {
+      const balls = r.querySelectorAll('.ball');
+      return [...balls].map(b => b.textContent).sort().join(',');
+    });
+    const unique = new Set(sets);
+    expect(unique.size).toBe(sets.length);  // 冇重複
+    // 有警告 (池太細)
+    expect(document.body.textContent || '').toContain('唔重複組合');
+  }, 20000);
+});
