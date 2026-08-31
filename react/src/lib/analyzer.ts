@@ -38,6 +38,8 @@ export interface DashboardData {
   cooccur_full?: { pair: string; count: number }[];
   special_freq_all?: { num: number; count: number }[];
   special_gaps?: { num: number; gap: number }[];
+  // v3.5: 最近 10 期開出號碼 (主+特), 由新到舊 — AI 推薦排除過去 N 期用
+  last_draws?: number[][];
 }
 
 export interface PredictResult {
@@ -48,6 +50,8 @@ export interface PredictResult {
   special_reason: string;
   target_draw: string;
   based_on: string;
+  excluded?: number[];  // v3.5: 被排除嘅號碼 (之前開過, 唔再 show)
+  excludeWeeksUsed?: number;  // v3.5: 實際排除咗幾多期 (排除太多會自動收縮)
 }
 
 // ── 共用機率數學 (ComboCalc / DanTuoCompare / BudgetPlanner 共用) ──
@@ -447,6 +451,7 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
     consec3: toList(consec3, 15),
     days_ago: Object.entries(daysAgo).map(([num, days]) => ({ num: Number(num), days })),
     last_seen: Object.entries(lastSeen).map(([num, date]) => ({ num: Number(num), date })),
+    last_draws: draws.slice(0, 10).map(d => [...d.main, d.special]),  // 最近10期主+特, 由新到舊
     recent_freq: recentFreq(draws, 50),
   };
 }
@@ -457,7 +462,8 @@ export function analyzeStatic(draws: Draw[]): DashboardData {
 
 // 特別號預測: 用特別號專用統計 (全部 49 個號碼做特別號嘅次數 + 距上次做特別號嘅期數)
 // 同主號碼引擎分開 — 特別號係獨立攪珠, 唔應該用主號碼頻率計
-export function pickSpecial(s: DashboardData, jitter = 0, seedArg?: number): { special: number; reason: string } {
+// exclude: 排除集合 (v3.5) — 最近 N 期開過嘅號碼唔會再推薦做特別號
+export function pickSpecial(s: DashboardData, jitter = 0, seedArg?: number, exclude: Set<number> = new Set()): { special: number; reason: string } {
   const N = s.total_draws;
   const spFreq = new Map((s.special_freq_all || []).map(x => [x.num, x.count]));
   const spGap = new Map((s.special_gaps || []).map(x => [x.num, x.gap]));
@@ -473,6 +479,7 @@ export function pickSpecial(s: DashboardData, jitter = 0, seedArg?: number): { s
   let best = 1, bs = -Infinity;
   let bestCount = 0, bestGap = N;
   for (let n = 1; n <= 49; n++) {
+    if (exclude.has(n)) continue;  // v3.5: 唔揀最近開過嘅
     const count = spFreq.get(n) || 0;
     const gap = spGap.get(n) ?? N;
     const z = (count - spMean) / spStd;
@@ -487,7 +494,7 @@ export function pickSpecial(s: DashboardData, jitter = 0, seedArg?: number): { s
   return { special: best, reason: parts.join('、') };
 }
 
-export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): PredictResult {
+export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number, excludeWeeks = 1): PredictResult {
   const N = s.total_draws;
   // 用 freq_all (全部 49 個號碼) 計分, 唔可以淨係 top 15 — 否則中低頻號碼全部當平均頻率, 喪失分辨力
   const freq: Record<number, number> = Object.fromEntries((s.freq_all || s.freq_top).map(x => [x.num, x.count]));
@@ -498,7 +505,26 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
   const recentMap: Record<number, number> = Object.fromEntries((s.recent_freq || []).map(x => [x.num, x.count]));
   const recentWin = Math.min(50, N);
   const recentAvg = recentWin * 6 / 49;  // 近50期每號期望出幾多次
-  const lastNums = new Set(s.last_numbers.concat([s.last_special]));
+  // 排除過去 N 期開過嘅號碼 (主+特) — v3.5 新增, 唔會再 show 返之前開過嘅號碼
+  // ⚠️ 排除太多會令候選池唔夠 → 自動收縮 (最少 1 期), 確保有 ≥15 個號碼可揀 (main15 要 15 個)
+  const requested = Math.max(1, Math.min(10, Math.floor(excludeWeeks || 1)));
+  let exclWeeks = requested;
+  let lastNums = new Set<number>();
+  const buildExcl = (w: number) => {
+    const excl = new Set<number>();
+    if (s.last_draws && s.last_draws.length > 0) {  // s = DashboardData (外層)
+      for (const draw of s.last_draws.slice(0, w)) for (const n of draw) excl.add(n);
+    } else {
+      for (const n of s.last_numbers) excl.add(n);
+      excl.add(s.last_special);
+    }
+    return excl;
+  };
+  for (let w = requested; w >= 1; w--) {
+    const s2 = buildExcl(w);
+    if (49 - s2.size >= 15) { exclWeeks = w; lastNums = s2; break; }
+    lastNums = s2;  // 最後 fallback = 最細排除
+  }
   const candidates: number[] = [];
   // jitter seed: 有傳 seedArg 就用 (可重現), 否則每次唔同 (用時間 seed)
   let seed = seedArg ?? Math.floor(Math.random() * 0x7fffffff);
@@ -707,6 +733,6 @@ export function predictStatic(s: DashboardData, jitter = 0, seedArg?: number): P
   const n2 = Number(nn) + 1;
   // 每年最多 ~156 期 (二四六 × 52 週) — 超過即跨年 (26/156 → 27/001)
   const target_draw = n2 > 156 ? `${Number(yy) + 1}/001` : `${yy}/${String(n2).padStart(3, '0')}`;
-  const sp = pickSpecial(s, jitter, seedArg);
-  return { main10, main15, reasons, special: sp.special, special_reason: sp.reason, target_draw, based_on: `${N}期數據` };
+  const sp = pickSpecial(s, jitter, seedArg, lastNums);
+  return { main10, main15, reasons, special: sp.special, special_reason: sp.reason, target_draw, based_on: `${N}期數據`, excluded: [...lastNums].sort((a, b) => a - b), excludeWeeksUsed: exclWeeks };
 }

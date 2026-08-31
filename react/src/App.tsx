@@ -208,15 +208,15 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
   );
 }
 
-function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data']; reroll: number; onReroll: () => void }) {
+function PredictView({ data, dash, reroll, onReroll, excludeWeeks, onExcludeWeeks }: { data: ReturnType<typeof usePrediction>['data']; dash: ReturnType<typeof useDashboard>['data']; reroll: number; onReroll: () => void; excludeWeeks: number; onExcludeWeeks: (n: number) => void }) {
   const [count, setCount] = useState<10 | 15>(10);  // 10 個字 / 15 個字
   // 每次 reroll 用前端引擎 + 隨機抖動重新生成 (API mode 都用 jitter 版)
   // seed=reroll → 抖動可重現, 命中率 walk-forward 用返同一個 seed 對應顯示
   const gen = useMemo(() => {
     if (!dash) return data;
     // 用 static 引擎 + jitter 生成「次次唔同」版本
-    return predictStatic(dash, 12, reroll);
-  }, [dash, data, reroll]);
+    return predictStatic(dash, 12, reroll, excludeWeeks);
+  }, [dash, data, reroll, excludeWeeks]);
   const shown = gen || data;
   // Hooks 必須喺 early return 之前 (Rules of Hooks)
   const nums = (shown && count === 15 ? shown.main15 : shown?.main10) || [];
@@ -282,9 +282,18 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
           <button className={count === 10 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(10)}>10 個字 ($2,100)</button>
           <button className={count === 15 ? 'dim-btn active' : 'dim-btn'} onClick={() => setCount(15)}>15 個字 ($50,050)</button>
         </div>
+        <div className="dim-tabs" style={{ marginLeft: 8 }}>
+          <span className="check-label" style={{ marginRight: 4 }}>🚫 排除過去：</span>
+          {[1, 3, 5, 10].map(w => (
+            <button key={w} className={excludeWeeks === w ? 'dim-btn active' : 'dim-btn'} onClick={() => onExcludeWeeks(w)}>{w} 期</button>
+          ))}
+        </div>
       </div>
       <div className="gen-note" style={{ margin: '0 auto 10px', maxWidth: 720, textAlign: 'center' }}>
         🎯 上面係 <b>7 字主打</b>（6 主號 + 1 特別號，$10 一注）— 波色已平衡。下面嘅 reasons 頭 6 個就係主打嘅主號碼；想買大啲就揀 10 / 15 個字複式。
+        {excludeWeeks > 1 && shown?.excluded?.length ? (
+          <> <br />🚫 已排除過去 {shown.excludeWeeksUsed ?? excludeWeeks} 期開過嘅 {shown.excluded.length} 個號碼（{shown.excluded.join('、')}）— 唔會再出現喺推薦入面{excludeWeeks !== (shown.excludeWeeksUsed ?? excludeWeeks) ? `（你想排除${excludeWeeks}期但候選池唔夠，自動收縮到${shown.excludeWeeksUsed}期）` : ''}。</>
+        ) : null}
       </div>
 
       {/* AI 膽拖方案 */}
@@ -327,6 +336,7 @@ function PredictView({ data, dash, reroll, onReroll }: { data: ReturnType<typeof
 function MainApp() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [predictReroll, setPredictReroll] = useState(0);  // AI推薦 reroll seed (命中率共用, 保持一致)
+  const [predictExcludeWeeks, setPredictExcludeWeeks] = useState(1);  // v3.5: AI推薦排除過去N期
   const [dark, setDark] = useState<boolean>(() => {
     // 初始: 跟 localStorage, 冇就跟系統偏好
     const saved = localStorage.getItem('ms-theme');
@@ -434,8 +444,8 @@ function MainApp() {
 
       {tab === 'predict' && (
         <>
-          <PredictView data={prediction.data} dash={data} reroll={predictReroll} onReroll={() => setPredictReroll(r => r + 1)} />
-          <HitRate data={data} history={history.data || []} seed={predictReroll} />
+          <PredictView data={prediction.data} dash={data} reroll={predictReroll} onReroll={() => setPredictReroll(r => r + 1)} excludeWeeks={predictExcludeWeeks} onExcludeWeeks={setPredictExcludeWeeks} />
+          <HitRate data={data} history={history.data || []} seed={predictReroll} excludeWeeks={predictExcludeWeeks} />
         </>
       )}
 

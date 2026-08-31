@@ -9,13 +9,14 @@ interface Props {
   data: DashboardData;
   history: Draw[];
   seed?: number;  // 同 AI推薦顯示共用嘅抖動種子 → 命中率對應返而家睇緊嘅組合
+  excludeWeeks?: number;  // v3.5: 排除過去N期 (同 AI推薦 tab 一致)
 }
 
-export function HitRate({ data, history, seed }: Props) {
+export function HitRate({ data, history, seed, excludeWeeks = 1 }: Props) {
   const [lookback, setLookback] = useState(10);  // 睇返過去幾多期
 
-  // 而家顯示緊嘅推薦 (同 AI推薦 tab hero 一致: 同一數據 + 同一抖動種子)
-  const current = useMemo(() => predictStatic(data, 12, seed), [data, seed]);
+  // 而家顯示緊嘅推薦 (同 AI推薦 tab hero 一致: 同一數據 + 同一抖動種子 + 同一排除期數)
+  const current = useMemo(() => predictStatic(data, 12, seed, excludeWeeks), [data, seed, excludeWeeks]);
 
   const result = useMemo(() => {
     if (history.length < 2) return null;
@@ -31,7 +32,7 @@ export function HitRate({ data, history, seed }: Props) {
       // 用第 i 期之前嘅數據做推薦 (walk-forward) — 完整重算, 唔偷睇未來
       const past = history.slice(i);  // 排除 i 期 (由最新開始數)
       const pastData = analyzeStatic(past);  // freq/共現/動量/gaps 全部由當時 slice 重算
-      const pred = predictStatic(pastData, 12, seed);  // 同顯示一樣 jitter + 同一種子
+      const pred = predictStatic(pastData, 12, seed, excludeWeeks);  // 同顯示一樣 jitter + 同一種子 + 同一排除期數
       const actual = history[i - 1];
       const hitNums = pred.main10.filter(n => actual.main.includes(n));
       rows.push({ draw: actual.draw, main10: pred.main10, hits: hitNums.length, hitNums, spPick: pred.special, spHit: pred.special === actual.special });
@@ -44,7 +45,7 @@ export function HitRate({ data, history, seed }: Props) {
     // 期望值: 10 個號碼中 6 個 = 10 * 6/49 ≈ 1.22; 特別號 = 1/49 ≈ 2%
     const expected = (10 * 6 / 49).toFixed(2);
     return { rows, total, avg, expected, spHits, spRate };
-  }, [data, history, lookback, seed, current]);
+  }, [data, history, lookback, seed, excludeWeeks, current]);
 
   if (!result) return null;
 
