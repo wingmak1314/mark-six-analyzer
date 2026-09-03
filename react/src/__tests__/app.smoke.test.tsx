@@ -91,19 +91,32 @@ describe('六合彩 App smoke', () => {
     expect(screen.getAllByText(/命中率/).length).toBeGreaterThan(0);
   }, 20000);
 
-  it('統計預測 tab: 結構平衡 (2-4 奇/2-4 細)', async () => {
+  it('統計預測 tab: 結構平衡 (預設15個: 4-7 奇/4-7 細; 揀8個: 2-4)', async () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     fireEvent.click(screen.getByText('📐 統計預測'));
     await screen.findByText(/統計學預測/, {}, { timeout: 8000 });
+    // 預設 15 個: 4-7 奇/細
     const m = bodyText().match(/(\d)奇(\d)偶 · (\d)細(\d)大/);
     expect(m).toBeTruthy();
     if (m) {
       const odd = Number(m[1]), small = Number(m[3]);
-      expect(odd).toBeGreaterThanOrEqual(2);
-      expect(odd).toBeLessThanOrEqual(4);
-      expect(small).toBeGreaterThanOrEqual(2);
-      expect(small).toBeLessThanOrEqual(4);
+      expect(odd).toBeGreaterThanOrEqual(4);
+      expect(odd).toBeLessThanOrEqual(7);
+      expect(small).toBeGreaterThanOrEqual(4);
+      expect(small).toBeLessThanOrEqual(7);
+    }
+    // 切換去 8 個: 2-4 奇/細
+    fireEvent.click(screen.getByText('8個'));
+    await screen.findByText(/統計學預測/, {}, { timeout: 8000 });
+    const m2 = bodyText().match(/(\d)奇(\d)偶 · (\d)細(\d)大/);
+    expect(m2).toBeTruthy();
+    if (m2) {
+      const odd2 = Number(m2[1]), small2 = Number(m2[3]);
+      expect(odd2).toBeGreaterThanOrEqual(2);
+      expect(odd2).toBeLessThanOrEqual(4);
+      expect(small2).toBeGreaterThanOrEqual(2);
+      expect(small2).toBeLessThanOrEqual(4);
     }
   }, 20000);
 

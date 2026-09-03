@@ -15,11 +15,12 @@ interface Props {
 export function StatsPredict({ data, history }: Props) {
   const [reroll, setReroll] = useState(0);  // 每次 +1 → 重新生成
   const [lookback, setLookback] = useState(20);
+  const [pickCount, setPickCount] = useState(15);  // 揀 8 或 15 個號碼
 
   // 當前預測: 同一個引擎, 加抖動 (次次唔同)
   const result = useMemo(
-    () => statsPick(data, { top: 8, jitter: 4, seed: reroll }),
-    [data, reroll]
+    () => statsPick(data, { top: pickCount, jitter: 4, seed: reroll }),
+    [data, reroll, pickCount]
   );
 
   // 回顧實測: 第一行 = 用而家顯示緊嗰組直接對最新一期 (同你睇緊嘅完全一致)
@@ -36,22 +37,28 @@ export function StatsPredict({ data, history }: Props) {
     for (let i = 2; i <= Math.min(lookback, history.length - 1); i++) {
       const past = history.slice(i);
       const pastData = analyzeStatic(past);  // 所有統計 (freq/gaps/共現/動量) 都係由當時 slice 重算
-      const pick = statsPick(pastData, { top: 8, jitter: 4, seed: reroll + i });  // 每行唔同種子 → 組合多啲變化
+      const pick = statsPick(pastData, { top: pickCount, jitter: 4, seed: reroll + i });  // 每行唔同種子 → 組合多啲變化
       const actual = history[i - 1];
       const hitNums = pick.nums.filter(n => actual.main.includes(n));
       rows.push({ draw: actual.draw, nums: pick.nums, actualNums: actual.main, actualSpecial: actual.special, hits: hitNums.length, hitNums });
     }
     const total = rows.reduce((s, r) => s + r.hits, 0);
     const avg = rows.length ? (total / rows.length).toFixed(2) : '0';
-    // 期望值: 8 個號碼 × 6/49 ≈ 0.98
-    const expected = (8 * 6 / 49).toFixed(2);
+    // 期望值: pickCount 個號碼 × 6/49 (15個 ≈ 1.84, 8個 ≈ 0.98)
+    const expected = (pickCount * 6 / 49).toFixed(2);
     return { rows, avg, expected };
-  }, [data, history, lookback, reroll, result]);
+  }, [data, history, lookback, reroll, pickCount, result]);
 
   return (
     <div className="gen-wrap">
       <Card title="📐 統計學預測（z-score + 卡方 + gap + 共現 + 近50期動量）" icon="📐">
         <div className="stats-actions">
+          <div className="hitrate-controls">
+            <span className="check-label">揀數：</span>
+            {[8, 15].map(n => (
+              <button key={n} className={pickCount === n ? 'dim-btn active' : 'dim-btn'} onClick={() => setPickCount(n)}>{n}個</button>
+            ))}
+          </div>
           <button className="gen-btn" onClick={() => setReroll(r => r + 1)}>🎲 重新生成（次次唔同）</button>
           <span className="stats-hint">已生成 {reroll + 1} 次</span>
         </div>
@@ -60,7 +67,7 @@ export function StatsPredict({ data, history }: Props) {
         </div>
         <div className="stats-meta">
           <span>📚 基數：{data.total_draws} 期 · 期望頻率 {result.mean} · σ={result.std}</span>
-          <span>⚖️ 結構：{result.odd}奇{8 - result.odd}偶 · {result.small}細{8 - result.small}大 · 連號{result.consec}對（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）</span>
+          <span>⚖️ 結構：{result.odd}奇{pickCount - result.odd}偶 · {result.small}細{pickCount - result.small}大 · 連號{result.consec}對{pickCount === 15 ? '（15個建議 4-7奇 / 4-7細）' : '（歷史：77% 開2-4奇 · 81% 2-4細 · 46% 含連號）'}</span>
         </div>
         <div className="reason-list">
           {result.scores.map(x => (
@@ -83,7 +90,7 @@ export function StatsPredict({ data, history }: Props) {
           </div>
           <div className="hitrate-summary">
             <span>📊 平均每期中 <b>{hitResult.avg}</b> 個主號碼</span>
-            <span>🎲 隨機期望：{hitResult.expected} 個（8×6/49）</span>
+            <span>🎲 隨機期望：{hitResult.expected} 個（{pickCount}×6/49）</span>
             <span className={Number(hitResult.avg) > Number(hitResult.expected) ? 'hitrate-good' : 'hitrate-neutral'}>
               {Number(hitResult.avg) > Number(hitResult.expected) ? '📈 比隨機好' : '📉 同隨機差唔多'}
             </span>
@@ -118,7 +125,7 @@ export function StatsPredict({ data, history }: Props) {
           </div>
           <div className="gen-note">
             💡 <b>點樣計：</b>每行分兩層 — <b>🔮 預測</b> = 嗰期嘅 AI 預測號碼（紅色 = 中咗，灰色 = 冇中）；<b>🎱 開出</b> = 嗰期實際開獎號碼（黃色 = 特別號）。對比之下就清楚見到「預測 vs 實際」。第一行用你而家睇緊嗰組；其餘行 = 喺過去每一期之前用當時數據行同一個統計引擎（每行用唔同抖動種子，模擬次次重新生成）。
-            <br />⚠️ 六合彩每期獨立，命中率同隨機期望（8×6/49 ≈ 0.98 個）差唔多係正常 — 呢個統計係幫你了解「統計引擎嘅實際表現」，唔代表未來會中。
+            <br />⚠️ 六合彩每期獨立，命中率同隨機期望（{pickCount}×6/49 ≈ {(pickCount * 6 / 49).toFixed(2)} 個）差唔多係正常 — 呢個統計係幫你了解「統計引擎嘅實際表現」，唔代表未來會中。
           </div>
         </Card>
       )}

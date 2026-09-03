@@ -17,7 +17,7 @@ beforeAll(() => {
 });
 
 describe('統計預測命中率表格完整性', () => {
-  it('walk-forward 每行號碼 8 個唔重複 + 命中數 = 實際中幾多', async () => {
+  it('walk-forward 每行號碼 15 個唔重複 + 命中數 = 實際中幾多', async () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     fireEvent.click(screen.getAllByText('📐 統計預測')[0]);
@@ -42,8 +42,8 @@ describe('統計預測命中率表格完整性', () => {
       // 只攞「預測」嗰層 (hitrate-line:first-child) 嘅波 — 而家每行有預測+開出兩層
       const predLine = row.querySelector('.hitrate-line');
       const balls = [...predLine!.querySelectorAll('.ball')].map(b => Number(b.textContent)).filter(n => !isNaN(n) && n > 0);
-      // 每行 8 個唔重複
-      if (new Set(balls).size !== balls.length || balls.length !== 8) {
+      // 每行 15 個唔重複
+      if (new Set(balls).size !== balls.length || balls.length !== 15) {
         dupCount++;
         console.log('❌ 重複/缺號行:', balls.join(','));
       }

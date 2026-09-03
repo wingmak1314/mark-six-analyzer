@@ -251,44 +251,53 @@ export function statsPick(s: DashboardData, opts: { top?: number; jitter?: numbe
   scores.sort((a, b) => b.score - a.score);
   let picked = scores.slice(0, top);
 
-  // 結構平衡: 奇偶/大小都要 2-4 (歷史 77% 開 2-4 奇、81% 開 2-4 細) + 波色分散 (歷史 ~紅35/藍33/綠33)
-  // 8 個號碼: odd ∈ [2,4], small ∈ [2,4], 任何波色 ≤ 4 且至少 2 色
+  // 結構平衡: 奇偶/大小界限按號碼數縮放 (8個: 2-4, 歷史 77% 開 2-4 奇、81% 2-4 細)
+  // 15個: 4-7 (期望值 ~7.5 奇, 歷史 15 個號碼同樣集中喺 4-7 區間) + 波色分散
   // ⚠️ 要喺連號修正之後再行多次 — 連號 swap 會破壞平衡
+  const bounds = (k: number) => ({
+    min: k <= 8 ? 2 : Math.ceil(k * 0.25),
+    max: k <= 8 ? 4 : Math.floor(k * 0.5),
+    maxColor: k <= 8 ? 4 : Math.ceil(k / 3) + 1,
+  });
   const balance = (picked: { num: number; score: number; parts: string[] }[]) => {
     for (let pass = 0; pass < 20; pass++) {
+      const k = picked.length;
+      const { min: oMin, max: oMax } = bounds(k);
       const inPool = new Set(picked.map(x => x.num));
       const odd = picked.filter(x => x.num % 2 === 1).length;
       const small = picked.filter(x => x.num <= 24).length;
-      if (odd >= 2 && odd <= 4 && small >= 2 && small <= 4) break;
+      if (odd >= oMin && odd <= oMax && small >= oMin && small <= oMax) break;
       let swapped = false;
-      if (odd > 4) {
+      if (odd > oMax) {
         const drop = picked.find(x => x.num % 2 === 1);
         const add = scores.find(x => !inPool.has(x.num) && x.num % 2 === 0);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
-      } else if (odd < 2) {
+      } else if (odd < oMin) {
         const drop = picked.find(x => x.num % 2 === 0);
         const add = scores.find(x => !inPool.has(x.num) && x.num % 2 === 1);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); swapped = true; }
       }
       if (swapped) continue;
       const small2 = picked.filter(x => x.num <= 24).length;
-      if (small2 > 4) {
+      if (small2 > oMax) {
         const drop = picked.find(x => x.num <= 24);
         const add = scores.find(x => !inPool.has(x.num) && x.num > 24);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
-      } else if (small2 < 2) {
+      } else if (small2 < oMin) {
         const drop = picked.find(x => x.num > 24);
         const add = scores.find(x => !inPool.has(x.num) && x.num <= 24);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); }
       }
     }
-    // 波色分散: 任何色 > 4 → 換走一個, 補最少色
+    // 波色分散: 任何色超標 → 換走一個, 補最少色 (界限隨號碼數縮放)
     for (let pass = 0; pass < 8; pass++) {
+      const k = picked.length;
+      const { maxColor } = bounds(k);
       const inPool = new Set(picked.map(x => x.num));
       let fixed = false;
       for (const c of ['red', 'blue', 'green'] as const) {
         const colorCount = picked.filter(x => waveColor(x.num) === c).length;
-        if (colorCount <= 4) continue;
+        if (colorCount <= maxColor) continue;
         const drop = picked.find(x => waveColor(x.num) === c);
         const add = scores.find(x => !inPool.has(x.num) && waveColor(x.num) !== c);
         if (drop && add) { picked = picked.filter(x => x.num !== drop.num); picked.push(add); fixed = true; break; }
