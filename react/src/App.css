@@ -149,6 +149,25 @@ body {
   background: var(--text);
 }
 
+/* ── 導覽分組 (統計/預測/工具) — 降級視覺, 組名做標籤 ── */
+.nav-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px 2px 10px;
+  margin-left: 6px;
+  border-left: 1px solid var(--border-soft);
+}
+.nav-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3, #86868b);
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+  user-select: none;
+}
+.nav-group-btns { display: inline-flex; gap: 2px; }
+
 /* ── Hero (最新開獎) ── */
 .hero {
   background: var(--bg-elev);
@@ -421,6 +440,24 @@ footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 32p
 .gen-set-label { font-size: 12px; font-weight: 600; color: var(--blue); min-width: 52px; }
 .gen-set-meta { font-size: 12px; color: var(--text-3); }
 .gen-note { font-size: 12.5px; color: var(--text-2); padding: 12px 16px; background: var(--bg); border-radius: var(--radius-md); border: none; line-height: 1.65; }
+
+/* ── 摺疊說明 (Note) — 長文字預設收埋 ── */
+.note-wrap { margin-top: 10px; }
+.note-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-3, #86868b);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 980px;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.note-toggle:hover { color: var(--text); background: rgba(0, 0, 0, 0.05); }
+[data-theme="dark"] .note-toggle:hover { background: rgba(255, 255, 255, 0.08); }
+.note-body { margin-top: 6px; }
 
 /* ── Ticket checker ── */
 .check-draw { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; color: var(--text-2); margin-bottom: 14px; padding: 12px; background: var(--bg); border-radius: var(--radius-md); }

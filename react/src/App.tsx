@@ -23,6 +23,7 @@ import { BetCalc } from './components/BetCalc';
 import { DanTuoCompare } from './components/DanTuoCompare';
 import { PredictLab } from './components/PredictLab';
 import { ColorAnalysis } from './components/ColorAnalysis';
+import { Note } from './components/Note';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -289,12 +290,12 @@ function PredictView({ data, dash, reroll, onReroll, excludeWeeks, onExcludeWeek
           ))}
         </div>
       </div>
-      <div className="gen-note" style={{ margin: '0 auto 10px', maxWidth: 720, textAlign: 'center' }}>
+      <Note label="📖 點樣睇呢頁？">
         🎯 上面係 <b>7 字主打</b>（6 主號 + 1 特別號，$10 一注）— 波色已平衡。下面嘅 reasons 頭 6 個就係主打嘅主號碼；想買大啲就揀 10 / 15 個字複式。
         {excludeWeeks > 1 && shown?.excluded?.length ? (
           <> <br />🚫 已排除過去 {shown.excludeWeeksUsed ?? excludeWeeks} 期開過嘅 {shown.excluded.length} 個號碼（{shown.excluded.join('、')}）— 唔會再出現喺推薦入面{excludeWeeks !== (shown.excludeWeeksUsed ?? excludeWeeks) ? `（你想排除${excludeWeeks}期但候選池唔夠，自動收縮到${shown.excludeWeeksUsed}期）` : ''}。</>
         ) : null}
-      </div>
+      </Note>
 
       {/* AI 膽拖方案 */}
       {dtBankers.length > 0 && dtTickets > 0 && (
@@ -373,18 +374,33 @@ function MainApp() {
         <div className="logo">🎱 <span>六合彩大數據分析</span></div>
         <nav className="nav">
           {nav('dashboard', '📊 儀表板')}
-          {nav('tongji', '📋 統計總覽')}
-          {nav('colors', '🎨 波色分析')}
-          {nav('history', '📅 開獎記錄')}
           {nav('predict', '🎯 AI 推薦')}
-          {nav('statspredict', '📐 統計預測')}
-          {nav('predictlab', '🧪 預測實驗室')}
-          {nav('trend', '📈 走勢')}
-          {nav('payout', '💰 派彩走勢')}
-          {nav('generator', '🎲 選號器')}
-          {nav('betcalc', '🧮 投注計算')}
-          {nav('dantuocmp', '🎯 膽拖比較')}
-          {nav('checker', '🧾 核對')}
+          {nav('history', '📅 開獎記錄')}
+          <span className="nav-group">
+            <span className="nav-group-label">統計</span>
+            <span className="nav-group-btns">
+              {nav('tongji', '📋 統計總覽')}
+              {nav('colors', '🎨 波色分析')}
+              {nav('trend', '📈 走勢')}
+              {nav('payout', '💰 派彩走勢')}
+            </span>
+          </span>
+          <span className="nav-group">
+            <span className="nav-group-label">預測</span>
+            <span className="nav-group-btns">
+              {nav('statspredict', '📐 統計預測')}
+              {nav('predictlab', '🧪 預測實驗室')}
+            </span>
+          </span>
+          <span className="nav-group">
+            <span className="nav-group-label">工具</span>
+            <span className="nav-group-btns">
+              {nav('generator', '🎲 選號器')}
+              {nav('betcalc', '🧮 投注計算')}
+              {nav('dantuocmp', '🎯 膽拖比較')}
+              {nav('checker', '🧾 核對')}
+            </span>
+          </span>
         </nav>
         <button className="theme-toggle" onClick={() => setDark(d => !d)} aria-label="切換深色模式" title={dark ? '轉日間模式' : '轉黑夜模式'}>
           {dark ? '☀️' : '🌙'}

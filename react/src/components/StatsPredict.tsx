@@ -6,6 +6,7 @@ import { Ball } from './Ball';
 import { Card } from './Card';
 import { statsPick, analyzeStatic } from '../lib/analyzer';
 import type { DashboardData, Draw } from '../lib/analyzer';
+import { Note } from './Note';
 
 interface Props {
   data: DashboardData;
@@ -123,18 +124,18 @@ export function StatsPredict({ data, history }: Props) {
               </div>
             ))}
           </div>
-          <div className="gen-note">
+          <Note label="📖 點樣計？">
             💡 <b>點樣計：</b>每行分兩層 — <b>🔮 預測</b> = 嗰期嘅 AI 預測號碼（紅色 = 中咗，灰色 = 冇中）；<b>🎱 開出</b> = 嗰期實際開獎號碼（黃色 = 特別號）。對比之下就清楚見到「預測 vs 實際」。第一行用你而家睇緊嗰組；其餘行 = 喺過去每一期之前用當時數據行同一個統計引擎（每行用唔同抖動種子，模擬次次重新生成）。
             <br />⚠️ 六合彩每期獨立，命中率同隨機期望（{pickCount}×6/49 ≈ {(pickCount * 6 / 49).toFixed(2)} 個）差唔多係正常 — 呢個統計係幫你了解「統計引擎嘅實際表現」，唔代表未來會中。
-          </div>
+          </Note>
         </Card>
       )}
 
-      <div className="gen-note">
+      <Note label="📖 方法論同重要警告">
         💡 <b>方法論：</b>頻率 z-score + 卡方殘差 + gap 超額 + 共現傾向 + <b>近50期動量</b>，再加 <b>±16 分隨機抖動</b> — 所以每次撳「重新生成」都可能出唔同組合，但統計高分嘅號碼仍然大概率入選。
         <br />⚖️ <b>結構平衡：</b>奇偶/大小/連號同歷史分佈對齊（77% 開獎係 2-4 奇、81% 係 2-4 細、46% 含連號）— 就算冇得預測邊個號碼會中，至少組合「形狀」同歷史一致。
         <br />⚠️ <b>重要警告：</b>六合彩每期獨立隨機，任何統計方法都<b>唔會增加中獎機率</b> — 中獎機會同隨機一樣（1/13,983,816）。
-      </div>
+      </Note>
     </div>
   );
 }
