@@ -1,10 +1,11 @@
 // 自動核對 — 輸入飛 → 對比最新一期 → 計中獎
+// v3.8: 加 AI 推薦一撳代入 + 49 波點揀鍵盤 (唔使打字)
 // 附全獎項精確機率 (三變量超幾何: P(K=k,S=s) = C(6,k)C(1,s)C(42,6-k-s)/C(49,6))
 import { useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
-import { prizeTiers, totalWinProb } from '../lib/analyzer';
-import type { Draw } from '../lib/analyzer';
+import { prizeTiers, totalWinProb, predictStatic } from '../lib/analyzer';
+import type { DashboardData, Draw } from '../lib/analyzer';
 
 const PRIZE_AMOUNTS: Record<string, string> = {
   '頭獎': '最低 $800萬，視乎彩池',
@@ -20,7 +21,12 @@ function fmtOdds(odds: number): string {
   return odds >= 1_000_000 ? `1/${Math.round(odds / 1_000_000)}M` : `1/${Math.round(odds).toLocaleString()}`;
 }
 
-export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
+interface Props {
+  latestDraw?: Draw;
+  dash?: DashboardData;
+}
+
+export function TicketChecker({ latestDraw, dash }: Props) {
   const [nums, setNums] = useState<string[]>(['', '', '', '', '', '']);
   const [special, setSpecial] = useState('');
   const [result, setResult] = useState<string | null>(null);
@@ -68,6 +74,41 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
     setNums(next);
   };
 
+  // 一撳代入 AI 推薦 7 字主打 (reasons 頭 6 + 特別號)
+  const fillAI = () => {
+    if (!dash) return;
+    const p = predictStatic(dash, 0);
+    const main6 = p.reasons.slice(0, 6).map(r => String(r.num)).sort((a, b) => Number(a) - Number(b));
+    setNums(main6);
+    setSpecial(String(p.special));
+    setResult(null);
+  };
+
+  // 49 波點揀鍵盤: 撳波填入下一個空位 / 撳已揀波移除
+  const pickMain = (n: number) => {
+    const s = String(n);
+    const idx = nums.indexOf(s);
+    if (idx >= 0) {
+      const next = [...nums];
+      next[idx] = '';
+      setNums(next);
+      return;
+    }
+    const empty = nums.indexOf('');
+    if (empty < 0) return;  // 已滿 6 個
+    const next = [...nums];
+    next[empty] = s;
+    setNums(next);
+  };
+  const pickSpecial = (n: number) => {
+    setSpecial(cur => (cur === String(n) ? '' : String(n)));
+  };
+  const clearAll = () => { setNums(['', '', '', '', '', '']); setSpecial(''); setResult(null); };
+
+  // 已揀集合 (keyboard 高亮 + 特別號排除已揀主號)
+  const pickedSet = new Set(nums.filter(Boolean).map(Number));
+  const specialNum = Number(special) || 0;
+
   const tiers = prizeTiers();
 
   return (
@@ -80,6 +121,15 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
           </>
         ) : <span>載入中…</span>}
       </div>
+
+      {/* 快捷操作 */}
+      <div className="check-actions">
+        <button className="gen-btn" onClick={fillAI} disabled={!dash}>✨ 代入 AI 推薦（7 字主打）</button>
+        <button className="note-toggle" onClick={clearAll}>🗑️ 清空</button>
+        <span className="check-label">撳下面波揀號，或者打字都得：</span>
+      </div>
+
+      {/* 49 波鍵盤 — 主號碼 */}
       <div className="check-inputs">
         <span className="check-label">你嘅主號碼：</span>
         {nums.map((v, i) => (
@@ -87,12 +137,35 @@ export function TicketChecker({ latestDraw }: { latestDraw?: Draw }) {
             onChange={e => handleNum(i, e.target.value)} inputMode="numeric" />
         ))}
       </div>
+      <div className="keypad">
+        {Array.from({ length: 49 }, (_, i) => i + 1).map(n => (
+          <button
+            key={n}
+            className={pickedSet.has(n) ? 'keypad-ball picked' : 'keypad-ball'}
+            onClick={() => pickMain(n)}
+            type="button"
+          >{n}</button>
+        ))}
+      </div>
+
+      {/* 特別號 */}
       <div className="check-inputs">
         <span className="check-label">特別號：</span>
         <input className="check-num" value={special} placeholder="1-49" inputMode="numeric"
           onChange={e => setSpecial(e.target.value.replace(/[^\d]/g, '').slice(0, 2))} />
         <button className="gen-btn" onClick={check}>🔍 核對</button>
       </div>
+      <div className="keypad keypad-sp">
+        {Array.from({ length: 49 }, (_, i) => i + 1).map(n => (
+          <button
+            key={n}
+            className={n === specialNum ? 'keypad-ball sp-picked' : (pickedSet.has(n) ? 'keypad-ball dim' : 'keypad-ball')}
+            onClick={() => pickSpecial(n)}
+            type="button"
+          >{n}</button>
+        ))}
+      </div>
+
       {result && <div className="check-result">{result}</div>}
       <div className="check-prizes">
         <table>

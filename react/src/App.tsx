@@ -23,6 +23,7 @@ import { BetCalc } from './components/BetCalc';
 import { DanTuoCompare } from './components/DanTuoCompare';
 import { PredictLab } from './components/PredictLab';
 import { ColorAnalysis } from './components/ColorAnalysis';
+import { Thermo } from './components/Thermo';
 import { Note } from './components/Note';
 import './App.css';
 
@@ -140,6 +141,7 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
   return (
     <>
       <Hero data={data} />
+      <Thermo data={data} />
       <div className="grid">
         <Card title={`🎯 AI 7 字主打（目標 ${top7.target}）`} icon="🎯">
           <div className="hero-balls dashboard-7balls">
@@ -430,7 +432,7 @@ function MainApp() {
       )}
 
       {tab === 'checker' && (
-        <TicketChecker latestDraw={latestDraw} />
+        <TicketChecker latestDraw={latestDraw} dash={data} />
       )}
 
       {tab === 'trend' && (

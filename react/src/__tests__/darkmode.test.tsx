@@ -77,8 +77,8 @@ describe('選號器去重', () => {
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     fireEvent.click(screen.getByText('🎲 選號器'));
     await screen.findByText(/智能隨機選號器/, {}, { timeout: 8000 });
-    // 關掉排除
-    fireEvent.click(screen.getByRole('checkbox'));
+    // 關掉排除 (第一個 checkbox = 排除開關; 第二個 = 波色均衡)
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
     const selects = document.querySelectorAll('.gen-opt select');
     fireEvent.change(selects[2], { target: { value: '10' } });
     fireEvent.click(screen.getByText('🎯 生成號碼'));

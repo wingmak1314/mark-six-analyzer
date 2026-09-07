@@ -2,6 +2,8 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
+import { waveColor, WAVE_COLORS } from '../lib/colors';
+import type { WaveColor } from '../lib/colors';
 import type { Draw } from '../lib/analyzer';
 
 interface GeneratorProps {
@@ -14,6 +16,7 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
   const [excludeWeeks, setExcludeWeeks] = useState(10);   // 排除幾多期
   const [oddEven, setOddEven] = useState<'3:3' | '2:4' | 'any'>('3:3');  // 單雙比例
   const [bigSmall, setBigSmall] = useState<'3:3' | 'any'>('3:3');         // 大細比例
+  const [waveBalance, setWaveBalance] = useState(false);  // 波色均衡: 三色都要有
   const [count, setCount] = useState(5);  // 生成幾多組
   const [results, setResults] = useState<number[][]>([]);
 
@@ -99,6 +102,11 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
         }
       }
       if (picked.length !== 6) continue;
+      // 波色均衡: 三色都要至少 1 個 (唔符合就重試呢組)
+      if (waveBalance) {
+        const colors = new Set(picked.map(n => waveColor(n)));
+        if (colors.size < 3) continue;
+      }
       const sorted = [...picked].sort((a, b) => a - b);
       const key = sorted.join(',');
       if (seen.has(key)) continue;  // 跳過重複組合
@@ -150,6 +158,10 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
             </select>
           </label>
           <label className="gen-opt">
+            <input type="checkbox" checked={waveBalance} onChange={e => setWaveBalance(e.target.checked)} />
+            🎨 波色均衡（紅藍綠都要有）
+          </label>
+          <label className="gen-opt">
             生成組數
             <select value={count} onChange={e => setCount(Number(e.target.value))}>
               <option value={1}>1 組</option>
@@ -181,7 +193,20 @@ export function SmartGenerator({ lastNumbers, history }: GeneratorProps) {
                         const small = set.filter(n => n <= 24).length;
                         const oddOk = oddEven === 'any' || odd === Number(oddEven.split(':')[0]);
                         const smallOk = bigSmall === 'any' || small === Number(bigSmall.split(':')[0]);
-                        return `${odd}奇${6 - odd}偶 · ${small}細${6 - small}大${(!oddOk || !smallOk) ? '（條件太緊，已自動放寬）' : ''}`;
+                        // 波色徽章: 紅x藍x綠x
+                        const wc = { red: 0, blue: 0, green: 0 } as Record<WaveColor, number>;
+                        for (const n of set) wc[waveColor(n)]++;
+                        const structOk = (!oddOk || !smallOk) ? '⚠️' : '✓';
+                        return (
+                          <>
+                            <span className="wave-badges">
+                              {(['red', 'blue', 'green'] as WaveColor[]).map(c => (
+                                wc[c] > 0 ? <i key={c} className="wave-badge" style={{ background: WAVE_COLORS[c].css }}>{wc[c]}</i> : null
+                              ))}
+                            </span>
+                            {odd}奇{6 - odd}偶 · {small}細{6 - small}大 {structOk}{(!oddOk || !smallOk) ? '（條件太緊，已自動放寬）' : ''}
+                          </>
+                        );
                       })()
                     : '⚠️ 條件太緊，無法湊夠 6 個'}
                 </span>
