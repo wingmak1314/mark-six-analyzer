@@ -1,10 +1,13 @@
 // 🏆 金多寶歷史 — 151 期金多寶攪珠記錄 (2005-2026, HKJC 官方數據)
-// 載入 jdb.json (靜態檔, 每次數據 cron 一併維護), 加入少量統計: 號碼頻率/冷熱/波色
+// + 🎯 AI 15 字推薦: 用金多寶 151 期數據行同款預測引擎 (analyzeStatic + predictStatic)
 import { useMemo } from 'react';
 import { Card } from './Card';
 import { Ball } from './Ball';
+import { WaveBall } from './WaveBall';
 import { Note } from './Note';
 import { useQuery } from '@tanstack/react-query';
+import { analyzeStatic, predictStatic } from '../lib/analyzer';
+import { waveCombo } from '../lib/colors';
 
 type JdbDraw = { draw: string; date: string; main: number[]; special: number; code: string; name: string };
 
@@ -27,6 +30,13 @@ export function JdbHistory() {
     },
     staleTime: 3600_000,
   });
+
+  // AI 15 字: 金多寶 151 期行同款引擎 (冇 jitter = 每日數據更新前穩定)
+  const pred = useMemo(() => {
+    if (!data || data.length === 0) return null;
+    const s = analyzeStatic(data);
+    return { p: predictStatic(s, 0), total: data.length };
+  }, [data]);
 
   const stats = useMemo(() => {
     if (!data || data.length === 0) return null;
@@ -51,6 +61,25 @@ export function JdbHistory() {
 
   return (
     <>
+      {pred && (
+        <Card title={`🎯 金多寶 AI 15 字（基於 ${pred.total} 期金多寶數據）`} icon="🎯">
+          <div className="hero-balls">
+            {pred.p.main15.map(n => <WaveBall key={n} n={n} />)}
+          </div>
+          <div className="hero-meta">
+            <span>🎨 波色：{waveCombo(pred.p.main15)}</span>
+            <span>💡 15 字複式 = 5,005 注 = $50,050</span>
+          </div>
+          <div className="hero-meta">
+            <span>單雙：{pred.p.main15.filter(n => n % 2 === 1).length}單 {pred.p.main15.filter(n => n % 2 === 0).length}雙 · 大細：{pred.p.main15.filter(n => n > 24).length}大 {pred.p.main15.filter(n => n <= 24).length}細</span>
+            <span>特別號建議：{pred.p.special}（{pred.p.special_reason}）</span>
+          </div>
+          <Note label="📖 點解揀呢 15 個？">
+            用同一套 AI 引擎（頻率 + 共現 + 遺漏 + 近期趨勢 + 結構平衡），但數據源換成晒歷年 151 期金多寶攪珠 — 即係「金多寶先會開嘅號碼」統計，同平時每期六合彩唔同。⚠️ 每注中頭獎機率一樣係 1/13,983,816，統計唔會提高中獎率，只係揀號碼嘅參考角度唔同。
+          </Note>
+        </Card>
+      )}
+
       <Card title={`🏆 金多寶歷史（${data.length} 期 · 2005-2026）`} icon="🏆">
         <Note label="📖 金多寶係咩？">
           馬會唔定期注入大筆獎金嘅攪珠，頭獎通常有幾千萬甚至過億。2002-2004 官方紀錄冇標記金多寶，所以由 2005 年復活節金多寶起計。數據嚟自 HKJC 官方 API。

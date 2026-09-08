@@ -26,5 +26,18 @@ describe('金多寶 tab', () => {
     expect(heading).toBeTruthy();
     expect(screen.getByText('05/032')).toBeTruthy();
     expect(screen.getAllByText('復活節金多寶').length).toBeGreaterThan(0);
+    // AI 15 字卡片
+    const aiCard = await screen.findByText(/金多寶 AI 15 字（基於 151 期/, {}, { timeout: 10000 });
+    expect(aiCard).toBeTruthy();
+    const balls = document.querySelectorAll('.hero-balls .wave-ball');
+    expect(balls.length).toBe(15);
+    const nums = [...balls].map(b => Number(b.textContent)).filter(n => !Number.isNaN(n));
+    expect(nums.length).toBe(15);
+    expect(new Set(nums).size).toBe(15);           // 冇重複
+    expect(nums.every(n => n >= 1 && n <= 49)).toBe(true);
+    const odd = nums.filter(n => n % 2 === 1).length;
+    const small = nums.filter(n => n <= 24).length;
+    expect(odd).toBeGreaterThanOrEqual(3); expect(odd).toBeLessThanOrEqual(12);
+    expect(small).toBeGreaterThanOrEqual(3); expect(small).toBeLessThanOrEqual(12);
   }, 30000);
 });
