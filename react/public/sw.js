@@ -1,6 +1,6 @@
-// Service Worker — 離線 cache (PWA) v2
-// v2: bump cache name 強制舊 SW 失效, 確保用戶攞到新版 bundle
-const CACHE = 'marksix-v2';
+// Service Worker — 離線 cache (PWA) v3
+// v3: bump cache name 強制舊 SW 失效, 確保用戶攞到新版 bundle (金多寶 tab)
+const CACHE = 'marksix-v3';
 const CORE = [
   './',
   './index.html',
