@@ -21,6 +21,7 @@ else:
     HOME = os.path.expanduser("~")
     CACHE = os.path.join(HOME, "mark-six-tracker", "history_full.json")
 
+JDB = "jdb.json"
 PAYOUTS = os.path.join(os.path.dirname(CACHE), "payouts.json")
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -215,6 +216,60 @@ def update_payouts():
               open(PAYOUTS, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"✅ 派彩更新: +{added} 期, 共 {len(payouts)} 期")
 
+
+def update_jdb(timeout=25, retries=2):
+    """金多寶記錄維護 — 用 HKJC GraphQL 攞最近期數, 有 snowballCode 就 append 落 jdb.json"""
+    q = HKJC_QUERY
+    body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": 40}, "query": q}).encode()
+    last_err = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request("https://info.cld.hkjc.com/graphql/base/", data=body, headers={
+                "Content-Type": "application/json", "User-Agent": UA["User-Agent"], "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                raw = r.read()
+            if raw[:2] == b"\x1f\x8b":
+                import gzip
+                raw = gzip.decompress(raw)
+            data = json.loads(raw.decode("utf-8"))
+            snow = [x for x in (data.get("data") or {}).get("lotteryDraws") or [] if x.get("snowballCode")]
+            if not snow:
+                print("✅ 金多寶: 冇新數據 (近 40 期冇 snowball)")
+                return
+            jdb = {"source": "HKJC GraphQL (snowballCode)", "count": 0, "draws": []}
+            if os.path.exists(JDB):
+                try:
+                    jdb = json.load(open(JDB, encoding="utf-8"))
+                except Exception:
+                    pass
+            have = {d["draw"] for d in jdb.get("draws", [])}
+            added = 0
+            for x in snow:
+                dr = x.get("drawResult") or {}
+                nos = dr.get("drawnNo") or []
+                sp = dr.get("xDrawnNo")
+                if len(nos) != 6 or not sp:
+                    continue  # 未開獎
+                dn = f"{int(x['year']) % 100:02d}/{int(x['no']):03d}"
+                if dn in have:
+                    continue
+                dd = (x.get("drawDate") or "")[:10].split("-")
+                jdb["draws"].append({"draw": dn, "date": f"{dd[2]}/{dd[1]}/{dd[0]}" if len(dd) == 3 else "",
+                                     "main": [int(n) for n in nos], "special": int(sp),
+                                     "code": x.get("snowballCode"), "name": x.get("snowballName_ch")})
+                added += 1
+            if not added:
+                print("✅ 金多寶已最新, 冇新期")
+                return
+            jdb["draws"].sort(key=lambda d: d["draw"], reverse=True)
+            jdb["count"] = len(jdb["draws"])
+            json.dump(jdb, open(JDB, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+            print(f"✅ 金多寶更新: +{added} 期, 共 {len(jdb['draws'])} 期")
+        except Exception as e:
+            last_err = e
+            time.sleep(2)
+    print(f"  ⚠️ 金多寶更新失敗: {last_err}")
+
 def main():
     # NTP 校時: 確保執行時間準確 (UTC → 香港 UTC+8)
     nt = ntp_time()
@@ -237,6 +292,12 @@ def main():
         update_payouts()
     except Exception as e:
         print(f"  ⚠️ 派彩更新失敗: {e}")
+
+    # 1c. 金多寶記錄維護 (獨立, 失敗唔阻住)
+    try:
+        update_jdb()
+    except Exception as e:
+        print(f"  ⚠️ 金多寶更新失敗: {e}")
 
     # 2. 抓今年 + 上年 (防跨年)
     today_year = datetime.now().year

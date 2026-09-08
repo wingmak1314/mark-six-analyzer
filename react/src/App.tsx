@@ -23,15 +23,15 @@ import { BetCalc } from './components/BetCalc';
 import { DanTuoCompare } from './components/DanTuoCompare';
 import { PredictLab } from './components/PredictLab';
 import { ColorAnalysis } from './components/ColorAnalysis';
-import { Thermo } from './components/Thermo';
 import { Note } from './components/Note';
+import { JdbHistory } from './components/JdbHistory';
 import './App.css';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, retry: 1 } },
 });
 
-type Tab = 'dashboard' | 'tongji' | 'colors' | 'history' | 'predict' | 'statspredict' | 'predictlab' | 'trend' | 'payout' | 'generator' | 'betcalc' | 'dantuocmp' | 'checker';
+type Tab = 'dashboard' | 'tongji' | 'colors' | 'history' | 'predict' | 'statspredict' | 'predictlab' | 'trend' | 'payout' | 'generator' | 'betcalc' | 'dantuocmp' | 'checker' | 'jdb';
 
 // ── 統計總覽 (跟 lottery.hk tongji 頁面) ──
 function StatsTable({ title, icon, headers, rows, renderRow }: {
@@ -141,7 +141,6 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
   return (
     <>
       <Hero data={data} />
-      <Thermo data={data} />
       <div className="grid">
         <Card title={`🎯 AI 7 字主打（目標 ${top7.target}）`} icon="🎯">
           <div className="hero-balls dashboard-7balls">
@@ -414,6 +413,8 @@ function MainApp() {
       {tab === 'dashboard' && <DashboardView data={data} history={history.data || []} onGoPredict={() => setTab('predict')} />}
 
       {tab === 'tongji' && <TongjiView data={data} />}
+
+      {tab === 'jdb' && <JdbHistory />}
 
       {tab === 'colors' && <ColorAnalysis history={history.data || []} />}
 

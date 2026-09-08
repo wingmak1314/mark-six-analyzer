@@ -459,30 +459,20 @@ footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 32p
 [data-theme="dark"] .note-toggle:hover { background: rgba(255, 255, 255, 0.08); }
 .note-body { margin-top: 6px; }
 
-/* ── 🌡️ 今期溫度計 — 7×7 波色格, 底色深淺 = 熱度 ── */
-.thermo-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); margin-bottom: 10px; align-items: center; }
-.thermo-legend .thermo-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-.thermo-hint { color: var(--text-3, #86868b); margin-left: auto; }
-.thermo-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  max-width: 420px;
+
+/* ── 🏆 金多寶歷史 ── */
+.jdb-stats { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--text-2); margin: 10px 0; align-items: center; }
+.jdb-table { margin-top: 8px; }
+.jdb-head, .jdb-row { display: grid; grid-template-columns: 64px 90px 1fr auto; gap: 8px; align-items: center; padding: 7px 10px; }
+.jdb-head { font-size: 12px; color: var(--text-3, #86868b); font-weight: 600; border-bottom: 1px solid var(--border-soft); }
+.jdb-row { border-bottom: 1px solid var(--border-soft); font-size: 13px; }
+.jdb-row:hover { background: rgba(0,0,0,.03); }
+[data-theme="dark"] .jdb-row:hover { background: rgba(255,255,255,.05); }
+.jdb-name { color: var(--text-2); font-size: 12.5px; }
+@media (max-width: 640px) {
+  .jdb-head, .jdb-row { grid-template-columns: 56px 78px 1fr; }
+  .jdb-head span:last-child, .jdb-row .hist-balls { display: none; }
 }
-.thermo-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 1;
-  min-height: 30px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  cursor: default;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.thermo-cell:hover { transform: scale(1.15); box-shadow: 0 2px 8px rgba(0,0,0,.25); z-index: 1; }
 
 /* ── 核對頁 49 波鍵盤 + 快捷 ── */
 .check-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
