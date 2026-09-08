@@ -124,7 +124,7 @@ describe('六合彩 App smoke', () => {
     render(<App />);
     fireEvent.click(await screen.findByText('📊 儀表板', {}, { timeout: 8000 }));
     const tabs = [...document.querySelectorAll('.nav-btn')].map(b => b.textContent || '');
-    expect(tabs.length).toBe(13);
+    expect(tabs.length).toBe(14);
     // 重複嘅已移除
     expect(bodyText()).not.toContain('AI 對比');
     expect(bodyText()).not.toContain('🧮 計算器');
