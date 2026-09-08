@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Ball } from './Ball';
 import { Card } from './Card';
+import { Note } from './Note';
 import { coveringWheel } from '../lib/quant';
 
 type Guarantee = { t: number; m: number; label: string };
@@ -34,9 +35,9 @@ export function WheelGenerator() {
 
   return (
     <Card title="🌀 縮水輪（覆蓋設計）— 保證最低獎級，注數大減" icon="🌀">
-      <div className="dantuo-intro">
-        <b>原理：</b>揀 N 個號碼，原本複式要 C(N,6) 注；縮水輪用「覆蓋設計」算出最細注數集合，保證「如果中獎號碼入面有你揀嘅 m 個，就至少有一注中 t 個」。適合想慳注數、但接受「中 3/4 個先回本」嘅打法。
-      </div>
+      <Note label="📖 縮水輪原理（想慳注數先睇）">
+        揀 N 個號碼，原本複式要 C(N,6) 注；縮水輪用「覆蓋設計」算出最細注數集合，保證「如果中獎號碼入面有你揀嘅 m 個，就至少有一注中 t 個」。適合想慳注數、但接受「中 3/4 個先回本」嘅打法。
+      </Note>
 
       <div className="dantuo-section">
         <span className="check-label">揀號碼（6-13 個，預設 1-10）：</span>
@@ -87,10 +88,9 @@ export function WheelGenerator() {
         </div>
       )}
 
-      <div className="gen-note">
-        ⚠️ <b>誠實警告：</b>縮水輪<b>唔會提高中獎機率</b> — 中獎注數由 C(N,6) 減到縮水注數，頭獎機會按比例跌。佢嘅價值係「保證最低獎級」：例如中4保3，即係你揀嘅 10 個號碼入面中咗 4 個，就保證至少一注中 3 個（七獎 $20 回本）。想衝大獎嘅話，複式先係最直接。
-        <br />📐 呢個係「貪婪啟發式」解，唔保證最優覆蓋（組合數學 NP-Hard），但實際覆蓋率極高。參考：10 碼「中4保3」經典縮水約 30 注，同複式 210 注比慳 85%。
-      </div>
+      <Note label="⚠️ 誠實警告：縮水輪唔會提高中獎機率">
+        中獎注數由 C(N,6) 減到縮水注數，頭獎機會按比例跌。佢嘅價值係「保證最低獎級」：例如中4保3，即係你揀嘅 10 個號碼入面中咗 4 個，就保證至少一注中 3 個（七獎 $20 回本）。想衝大獎嘅話，複式先係最直接。📐 呢個係「貪婪啟發式」解，唔保證最優覆蓋（組合數學 NP-Hard），但實際覆蓋率極高。參考：10 碼「中4保3」經典縮水約 30 注，同複式 210 注比慳 85%。
+      </Note>
     </Card>
   );
 }
