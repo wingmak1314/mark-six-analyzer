@@ -218,9 +218,11 @@ def update_payouts():
 
 
 def update_jdb(timeout=25, retries=2):
-    """金多寶記錄維護 — 用 HKJC GraphQL 攞最近期數, 有 snowballCode 就 append 落 jdb.json"""
+    """金多寶記錄維護 — 用 HKJC GraphQL 攞最近期數, 有 snowballCode 就 append 落 jdb.json
+    lastNDraw=58 (API cap): 近年金多寶最大相隔 36 期 (2024 跨年), 58 有足夠 margin;
+    歷史極端 gap (2020-21 COVID 停辦 206 期) 唔會重現 — 呢啲已喺 seed 數據入面。"""
     q = HKJC_QUERY
-    body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": 40}, "query": q}).encode()
+    body = json.dumps({"operationName": "marksixResult", "variables": {"lastNDraw": 58}, "query": q}).encode()
     last_err = None
     for attempt in range(retries):
         try:
