@@ -377,6 +377,7 @@ function MainApp() {
           {nav('dashboard', '📊 儀表板')}
           {nav('predict', '🎯 AI 推薦')}
           {nav('history', '📅 開獎記錄')}
+          {nav('jdb', '🏆 金多寶')}
           <span className="nav-group">
             <span className="nav-group-label">統計</span>
             <span className="nav-group-btns">
