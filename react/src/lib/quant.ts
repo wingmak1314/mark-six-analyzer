@@ -118,3 +118,55 @@ export function shareProfile(nums: number[]): ShareProfile {
     bigCount: big,
   };
 }
+
+// ── 大眾心理重複度 — 偵測「人手圖案」──
+// 大眾買六合彩傾向畫圖案: 等差數列 (3,9,15,21...)、對稱 (3 配 47, 相加=50)、三連以上。
+// 呢類組合一旦中獎, 多數係一堆人一齊中 → 頭獎被攤薄。
+// 誠實: 影響派彩唔影響中獎率; 而且實測證據薄弱 (見 ShareRisk 卡片)。
+export interface PopularPatterns {
+  arith: number[] | null;   // 最長等差序列 (≥3 項)
+  arithDiff: number;        // 公差
+  mirror: number[];         // 對稱號碼對 (n + (50-n) 同時出現), 每對記細嗰個
+  longestRun: number;       // 最長連續號碼串 (1-2-3 = 3)
+  birthdayCount: number;    // ≤31 (生日效應)
+  crowded: boolean;         // 有冇明顯「大眾圖案」
+}
+
+export function popularPatterns(nums: number[]): PopularPatterns {
+  const s = [...nums].sort((a, b) => a - b);
+  const set = new Set(s);
+
+  // 等差序列: 枚舉所有 ≥3 項等差子序列, 取最長
+  let best: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    for (let j = i + 1; j < s.length; j++) {
+      const d = s[j] - s[i];
+      const seq = [s[i], s[j]];
+      let cur = s[j];
+      for (const n of s) if (n > cur && n - cur === d) { seq.push(n); cur = n; }
+      if (seq.length > best.length) best = seq;
+    }
+  }
+  const arith = best.length >= 3 ? best : null;
+
+  // 對稱: 兩數相加 = 50 (1↔49, 2↔48 … 24↔26), 25 為中軸
+  const mirror: number[] = [];
+  for (const n of s) if (n < 25 && set.has(50 - n)) mirror.push(n);
+
+  // 最長連號串
+  let run = 1, longest = 1;
+  for (let i = 1; i < s.length; i++) {
+    if (s[i] - s[i - 1] === 1) { run += 1; longest = Math.max(longest, run); }
+    else run = 1;
+  }
+
+  const birthdayCount = s.filter(n => n <= 31).length;
+  return {
+    arith,
+    arithDiff: arith ? arith[1] - arith[0] : 0,
+    mirror,
+    longestRun: longest,
+    birthdayCount,
+    crowded: !!arith || mirror.length >= 2 || birthdayCount >= 5,
+  };
+}

@@ -816,3 +816,22 @@ footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 32p
 .dtcmp-section { display: flex; flex-direction: column; gap: 6px; }
 .dtcmp-section .dantuo-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .dtcmp-section .dantuo-chips .ball { width: 26px; height: 26px; font-size: 12px; }
+
+/* ── 和值常態區間帶 (ShapeScore) ── */
+.sum-band { margin: 14px 0 10px; }
+.sum-band-title { font-size: 13px; color: var(--text-2); margin-bottom: 8px; }
+.sum-band-track {
+  position: relative; height: 26px; border-radius: 8px;
+  background: var(--border-soft, rgba(0,0,0,.06)); overflow: hidden;
+}
+.sum-band-95 { position: absolute; left: 16.67%; right: 16.67%; top: 0; bottom: 0; background: var(--blue-tint); opacity: .55; }
+.sum-band-68 { position: absolute; left: 33.33%; right: 33.33%; top: 0; bottom: 0; background: var(--blue-tint); }
+.sum-band-mark {
+  position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 2px;
+  background: var(--red); transform: translateX(-1px);
+}
+.sum-band-labels {
+  display: flex; flex-wrap: wrap; gap: 4px 16px;
+  font-size: 12px; color: var(--text-2); margin-top: 6px;
+}
+.warn-text { color: var(--orange); }

@@ -51,8 +51,12 @@ export function ShapeScore({ history }: Props) {
       return best;
     };
     const bestSum = pick(sumB);
+    const sums = history.map(d => d.main.reduce((a, b) => a + b, 0));
+    const mean = sums.length ? sums.reduce((a, b) => a + b, 0) / sums.length : 150;
+    const sd = sums.length > 1 ? Math.sqrt(sums.reduce((a, b) => a + (b - mean) ** 2, 0) / (sums.length - 1)) : 32.8;
     return {
       N,
+      sumStats: { mean, sd },
       odd: { dist: odd, pct: (k: number) => pct(odd, k) },
       small: { dist: small, pct: (k: number) => pct(small, k) },
       sum: { dist: sumB, best: bestSum },
@@ -83,7 +87,8 @@ export function ShapeScore({ history }: Props) {
       { label: `尾數 ${ts} 種`, pct: bucketPct(dists.tails.dist, ts), best: '6 種' },
     ];
     const avg = parts.reduce((a, p) => a + p.pct, 0) / parts.length;
-    return { parts, avg, odd, small, sum, consec: c };
+    const z = dists.sumStats.sd ? (sum - dists.sumStats.mean) / dists.sumStats.sd : 0;
+    return { parts, avg, odd, small, sum, consec: c, z };
   }, [selected, dists]);
 
   const bar = (pct: number) => ({ width: `${Math.min(100, Math.max(3, pct)).toFixed(0)}%` });
@@ -126,6 +131,22 @@ export function ShapeScore({ history }: Props) {
                 <span className="shape-pct">{p.pct.toFixed(0)}% 期數（主流：{p.best}）</span>
               </div>
             ))}
+          </div>
+
+          <div className="sum-band">
+            <div className="sum-band-title">
+              📊 和值常態分佈（歷史 μ={dists.sumStats.mean.toFixed(0)}，σ={dists.sumStats.sd.toFixed(1)}）
+            </div>
+            <div className="sum-band-track">
+              <div className="sum-band-95" />
+              <div className="sum-band-68" />
+              <div className="sum-band-mark" style={{ left: `${Math.max(0, Math.min(100, (score.sum - (dists.sumStats.mean - 3 * dists.sumStats.sd)) / (6 * dists.sumStats.sd) * 100))}%` }} />
+            </div>
+            <div className="sum-band-labels">
+              <span>±2σ {Math.round(dists.sumStats.mean - 2 * dists.sumStats.sd)}–{Math.round(dists.sumStats.mean + 2 * dists.sumStats.sd)}（95.4%）</span>
+              <span>±1σ {Math.round(dists.sumStats.mean - dists.sumStats.sd)}–{Math.round(dists.sumStats.mean + dists.sumStats.sd)}（68.3%）</span>
+              <span>你嘅和值 <b>{score.sum}</b>（{score.z >= 0 ? '+' : ''}{score.z.toFixed(2)}σ）</span>
+            </div>
           </div>
 
           <div className="gen-note">
