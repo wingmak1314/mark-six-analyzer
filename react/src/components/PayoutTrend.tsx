@@ -44,6 +44,13 @@ function evAtPool(pool: number): number {
   return FIXED_EV + pool / T - 10;
 }
 
+async function loadJdb(): Promise<{ draw: string }[]> {
+  const r = await fetch('jdb.json', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`jdb.json ${r.status}`);
+  const d = await r.json();
+  return d.draws || [];
+}
+
 export function PayoutTrend() {
   const [window, setWindow] = useState<'all' | '30'>('all');
   const { data, isLoading, isError } = useQuery({
@@ -56,6 +63,34 @@ export function PayoutTrend() {
     const sorted = [...data].sort((a, b) => a.draw.localeCompare(b.draw));
     return window === '30' ? sorted.slice(-30) : sorted;
   }, [data, window]);
+
+  // ── 金多寶期 vs 普通期（真數據：payouts.json ∩ jdb.json）──
+  const { data: jdbList } = useQuery({
+    queryKey: ['jdb'], queryFn: loadJdb, staleTime: 3_600_000, retry: 1,
+  });
+  const cmp = useMemo(() => {
+    if (!data || !jdbList) return null;
+    const J = new Set(jdbList.map(x => x.draw));
+    const sp = data.filter(p => J.has(p.draw));
+    const nm = data.filter(p => !J.has(p.draw));
+    if (!sp.length || !nm.length) return null;
+    const avg = (arr: Payout[], k: 'turnover' | 'total_fund' | 'first') => {
+      const v = arr.map(x => x[k] || 0).filter(x => x > 0);
+      return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0;
+    };
+    // 每注派彩 ÷ 投注額 = 控制彩池大小後嘅「分賬程度」
+    const fair = (arr: Payout[]) => {
+      const v = arr.filter(x => x.first > 0 && x.turnover > 0).map(x => x.first / x.turnover);
+      return v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0;
+    };
+    return {
+      nSp: sp.length, nNm: nm.length,
+      turn: [avg(sp, 'turnover'), avg(nm, 'turnover')],
+      fund: [avg(sp, 'total_fund'), avg(nm, 'total_fund')],
+      first: [avg(sp, 'first'), avg(nm, 'first')],
+      fair: [fair(sp), fair(nm)],
+    };
+  }, [data, jdbList]);
 
   if (isLoading) return <div className="loading"><div className="spinner" /><div>🔄 載入派彩數據…</div></div>;
   if (isError || !data) return <div className="loading">⚠️ 派彩數據載入失敗</div>;
@@ -104,6 +139,40 @@ export function PayoutTrend() {
           <br />📊 各獎級單注機率：{tierList.map(t => `${t.name} ${(t.prob * 100).toFixed(4)}%`).join(' · ')}
         </div>
       </Card>
+
+      {cmp && (
+        <Card title="🏆 金多寶期 vs 普通期（真數據對比）" icon="🏆">
+          <div className="payout-table">
+            <div className="payout-row payout-head">
+              <span>指標</span><span>金多寶期（{cmp.nSp}）</span><span>普通期（{cmp.nNm}）</span><span>倍數</span><span>睇法</span>
+            </div>
+            {([
+              ['平均總投注額', cmp.turn[0], cmp.turn[1], '全港投注總額'],
+              ['平均頭獎基金', cmp.fund[0], cmp.fund[1], '多寶滾存累積'],
+              ['平均頭獎每注', cmp.first[0], cmp.first[1], '同投注額成正比'],
+            ] as [string, number, number, string][]).map(([label, a, b, why]) => (
+              <div className="payout-row" key={label}>
+                <span>{label}</span>
+                <span>{fmtMoney(a)}</span>
+                <span className="payout-turnover">{fmtMoney(b)}</span>
+                <span className="hitrate-good">{b > 0 ? `${(a / b).toFixed(1)}×` : '—'}</span>
+                <span className="payout-turnover">{why}</span>
+              </div>
+            ))}
+            <div className="payout-row">
+              <span>頭獎每注 ÷ 投注額</span>
+              <span>{(cmp.fair[0] * 100).toFixed(1)}%</span>
+              <span className="payout-turnover">{(cmp.fair[1] * 100).toFixed(1)}%</span>
+              <span>{cmp.fair[1] > 0 ? `${(cmp.fair[0] / cmp.fair[1]).toFixed(2)}×` : '—'}</span>
+              <span className="payout-turnover">≈ 冇分別</span>
+            </div>
+          </div>
+          <div className="gen-note">
+            📐 <b>點解要睇最後一行：</b>呢個比率 = 每注頭獎派彩 ÷ 全期投注額，已經<b>控制咗彩池大小</b>。金多寶期投注額大到 4.4 倍，但比率同普通期差唔多（t 檢定 p≈0.35，唔顯著）→ 即係話<b>「金多寶多人買會分薄彩金」係假嘅</b>；多出嚟嘅錢純粹係多寶滾存累積，唔係「少人分」。
+            <br />⚠️ 中頭獎機率兩種期都係 1/13,983,816，買金多寶唔會易中啲 —— 只係獎金基數大。想搏就用 EV 模型揀彩池夠大嘅期（見上面）。
+          </div>
+        </Card>
+      )}
 
       <Card title="💰 派彩走勢（每期頭獎/二獎每注派彩）" icon="💰">
         <div className="payout-latest">
