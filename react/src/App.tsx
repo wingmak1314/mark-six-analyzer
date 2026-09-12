@@ -191,14 +191,6 @@ function DashboardView({ data, history, onGoPredict }: { data: ReturnType<typeof
             ))}
           </div>
         </Card>
-        <Card title="🤝 最強共現對" icon="🤝">
-          <div className="co-list">
-            {data.cooccur.slice(0, 8).map(x => {
-              const [a, b] = x.pair.split(',').map(Number);
-              return <div key={x.pair} className="co-item"><Ball n={a} cls="red" /><Ball n={b} cls="red" /><span>{x.count}次</span></div>;
-            })}
-          </div>
-        </Card>
         <Card title={`🗺️ 號碼熱力圖（全部 ${data.total_draws} 期）`} icon="🗺️">
           <Heatmap data={data.freq_all || data.freq_top} />
         </Card>
@@ -221,25 +213,9 @@ function PredictView({ data, dash, reroll, onReroll, excludeWeeks, onExcludeWeek
   }, [dash, data, reroll, excludeWeeks]);
   const shown = gen || data;
   // Hooks 必須喺 early return 之前 (Rules of Hooks)
-  const nums = (shown && count === 15 ? shown.main15 : shown?.main10) || [];
   const tickets = count === 15 ? 5005 : 210;   // C(15,6)=5005, C(10,6)=210
   const cost = tickets * 10;
 
-  // AI 膽拖: 前 3 個做膽, 其餘做拖 (reasons 依 AI 優先次序, 頭 3 個 = 最高分)
-  const [dtBankers, dtTrotters] = useMemo(() => {
-    const main = [...nums].sort((a, b) => a - b);
-    const top3 = (shown?.reasons?.length ? shown.reasons.slice(0, 3).map(r => r.num) : main.slice(0, 3));
-    const bankers = main.filter(n => top3.includes(n));
-    const trotters = main.filter(n => !top3.includes(n));
-    return [bankers, trotters];
-  }, [nums, shown]);
-  const dtTickets = useMemo(() => {
-    const r = dtBankers.length, n = dtTrotters.length;
-    if (r === 0 || r + n < 6) return 0;
-    let t = 1;
-    for (let i = 0; i < 6 - r; i++) t = t * (n - i) / (i + 1);
-    return Math.round(t);
-  }, [dtBankers, dtTrotters]);
   if (!shown) return null;
   // 7字主打 = AI 優先次序頭6個 (reasons top6) — 同下面「點解揀」列表頭6個一致
   // ⚠️ 唔可以用 main10.slice(0,6): main10 排序過, 同 AI 優先次序唔同, 會同 reasons 對唔上
@@ -298,27 +274,12 @@ function PredictView({ data, dash, reroll, onReroll, excludeWeeks, onExcludeWeek
         ) : null}
       </Note>
 
-      {/* AI 膽拖方案 */}
-      {dtBankers.length > 0 && dtTickets > 0 && (
-        <Card title="🎱 AI 膽拖方案（AI 優先次序頭 3 個做膽）" icon="🎱">
-          <div className="dantuo-selected">
-            <span className="check-label">🎯 膽（{dtBankers.length} 個）：</span>
-            <span className="dantuo-chips">{dtBankers.map(n => <Ball key={n} n={n} cls="sp" />)}</span>
-          </div>
-          <div className="dantuo-selected">
-            <span className="check-label">🔗 拖（{dtTrotters.length} 個）：</span>
-            <span className="dantuo-chips">{dtTrotters.map(n => <Ball key={n} n={n} cls="blue" />)}</span>
-          </div>
-          <div className="combo-result">
-            <div className="combo-row"><span>📝 {dtBankers.length} 膽拖 {dtTrotters.length} 尾</span><b>{dtTickets.toLocaleString()} 注</b></div>
-            <div className="combo-row"><span>💰 成本</span><b>${(dtTickets * 10).toLocaleString()}</b></div>
-            <div className="combo-row"><span>💡 慳咗</span><b>${(cost - dtTickets * 10).toLocaleString()}（vs 複式）</b></div>
-          </div>
-          <div className="gen-note">
-            💡 膽拖慳好多錢：{count} 個字複式要 ${cost.toLocaleString()}，但 {dtBankers.length} 膽拖 {dtTrotters.length} 尾只需 ${(dtTickets * 10).toLocaleString()}。代價係「膽要中」先有高獎 — 適合有信心 AI 揀嘅 top 3。
-          </div>
-        </Card>
-      )}
+      {/* 膽拖方案 → 詳情喺「🎯 膽拖比較」分頁（避免重複實作） */}
+      <Card title="🎱 想用膽拖？" icon="🎱">
+        <div className="gen-note">
+          💡 上面 AI 頭 3 個號碼就係最有信心嘅膽。去「🎯 膽拖比較」分頁可以自由揀 3 / 4 / 5 膽，睇晒注數、成本同中獎層級機率。
+        </div>
+      </Card>
 
       <Card title={`🧠 點解揀呢 ${count} 個號碼（大數據分析）`} icon="🧠">
         <div className="reason-list">
