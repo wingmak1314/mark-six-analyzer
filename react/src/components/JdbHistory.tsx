@@ -59,7 +59,14 @@ export function JdbHistory() {
     const all = [...freq].sort((a, b) => b.count - a.count || a.num - b.num)
       .map((x, i) => ({ ...x, rank: i + 1, main: mcnt.get(x.num) || 0, sp: x.count - (mcnt.get(x.num) || 0) }));
     const totalMain = data.length * 6;
-    return { oddPct: Math.round(odd / totalMain * 100), smallPct: Math.round(small / totalMain * 100), total: data.length, all, exp: data.length * 7 / 49 };
+    // 區間分佈: 每 10 個號碼一段 (1-10 / 11-20 / 21-30 / 31-40 / 41-49)
+    // 期望 = 期數 × 7 個波 × (該段號碼數 / 49)
+    const ranges = [[1, 10], [11, 20], [21, 30], [31, 40], [41, 49]].map(([a, b]) => {
+      let m = 0, s = 0;
+      for (let n = a; n <= b; n++) { m += mcnt.get(n) || 0; s += (cnt.get(n) || 0) - (mcnt.get(n) || 0); }
+      return { a, b, size: b - a + 1, main: m, sp: s, total: m + s, exp: data.length * 7 * (b - a + 1) / 49 };
+    });
+    return { oddPct: Math.round(odd / totalMain * 100), smallPct: Math.round(small / totalMain * 100), total: data.length, all, ranges, exp: data.length * 7 / 49 };
   }, [data]);
 
   if (isLoading) return <div className="loading"><div className="spinner" /><div>🔄 載入金多寶數據…</div></div>;
@@ -120,8 +127,32 @@ export function JdbHistory() {
                 {showAllNums ? '▲ 收起（只睇頭 15）' : `▼ 顯示全部 ${stats.all.length} 個號碼`}
               </button>
             )}
+            <div className="jdbnum-cap" style={{ marginTop: 18 }}>
+              <span>📊 區間分佈（每 10 個號碼一段）</span>
+            </div>
+            <div className="jdbrange-head">
+              <span>區間</span><span>主號</span><span>特別號</span><span>合計</span><span>期望</span><span>差距</span>
+            </div>
+            {stats.ranges.map(rg => {
+              const d = rg.total - rg.exp;
+              return (
+                <div className="jdbrange-row" key={rg.a}>
+                  <span className="jdbrange-lbl">{rg.a}-{rg.b}<em>{rg.size} 個</em></span>
+                  <span>{rg.main}</span>
+                  <span>{rg.sp}</span>
+                  <span className="jdbnum-total">
+                    {rg.total}
+                    <span className="jdbnum-bar" style={{ width: `${Math.round(rg.total / (stats.ranges[0]?.total || 1) * 100)}%` }} />
+                  </span>
+                  <span className="jdbrange-exp">{rg.exp.toFixed(0)}</span>
+                  <span className={d >= 0 ? 'jdbrange-up' : 'jdbrange-down'}>
+                    {d >= 0 ? '+' : '−'}{Math.abs(d).toFixed(0)}
+                  </span>
+                </div>
+              );
+            })}
             <Note label="📖 點睇呢個表？">
-              151 期金多寶每一期開 7 個波（6 主號 + 1 特別號），所以每個號碼嘅期望開出次數 = 151 × 7 ÷ 49 ≈ <b>21.6 次</b>。全 49 個號碼嘅分佈經卡方檢定（χ²=42.7，自由度 48）完全符合隨機 —「邊個開最多」只係隨機波動，唔代表下期會開。🎯 標住嘅係 AI 15 字推薦（由金多寶歷史 + 波色／單雙／大細平衡揀出），所以會有「更旺但冇入選」嘅情況，例如 10 號（28 次並列第一）因為要做特別號（7 次）先冇入。
+              151 期金多寶每一期開 7 個波（6 主號 + 1 特別號），所以每個號碼嘅期望開出次數 = 151 × 7 ÷ 49 ≈ <b>21.6 次</b>。全 49 個號碼嘅分佈經卡方檢定（χ²=42.7，自由度 48）完全符合隨機 —「邊個開最多」只係隨機波動，唔代表下期會開。🎯 標住嘅係 AI 15 字推薦（由金多寶歷史 + 波色／單雙／大細平衡揀出），所以會有「更旺但冇入選」嘅情況，例如 10 號（28 次並列第一）因為要做特別號（7 次）先冇入。區間分佈同理：五段最大差距 ±19 個波，卡方檢定 χ²=3.88（自由度 4，p≈0.42）→ 亦係隨機波動，冇一段特別旺。
             </Note>
           </div>
         )}

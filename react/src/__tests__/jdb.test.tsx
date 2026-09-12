@@ -65,5 +65,18 @@ describe('金多寶 tab', () => {
     const row10 = [...rows].find(r => r.querySelector('.ball')?.textContent === '10');
     expect(row10?.textContent).toContain('21');
     expect(row10?.textContent).toContain('7');
+
+    // 區間表: 5 段 (1-10 / 11-20 / 21-30 / 31-40 / 41-49)
+    const rgs = document.querySelectorAll('.jdbrange-row');
+    expect(rgs.length).toBe(5);
+    expect(screen.getByText('41-49')).toBeTruthy();
+    const m = (r: Element, i: number) => Number(r.children[i].textContent?.match(/^\d+/)?.[0] || 0);
+    const mains = [...rgs].map(r => m(r, 1));
+    expect(mains).toEqual([169, 195, 194, 170, 178]);      // 主號逐段
+    expect(mains.reduce((a, b) => a + b, 0)).toBe(906);     // = 151 × 6
+    const sps = [...rgs].map(r => m(r, 2));
+    expect(sps).toEqual([36, 32, 26, 27, 30]);             // 特別號逐段
+    expect(sps.reduce((a, b) => a + b, 0)).toBe(151);
+    expect([...rgs].map(r => m(r, 4))).toEqual([216, 216, 216, 216, 194]);   // 期望
   }, 30000);
 });

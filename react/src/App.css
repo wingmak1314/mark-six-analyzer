@@ -471,6 +471,21 @@ footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 32p
 .jdbnum-rk { color: var(--text-3); font-variant-numeric: tabular-nums; }
 .jdbnum-total { font-weight: 700; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 8px; }
 .jdbnum-bar { height: 8px; border-radius: 4px; background: var(--blue); opacity: 0.35; display: inline-block; min-width: 2px; }
+.jdbrange-head, .jdbrange-row { display: grid; grid-template-columns: 1.3fr 48px 56px 1.6fr 48px 52px; gap: 8px; align-items: center; }
+.jdbrange-head { font-size: 12px; font-weight: 600; color: var(--text-3); padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
+.jdbrange-row { font-size: 13px; padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
+.jdbrange-row:hover { background: rgba(0, 0, 0, 0.03); }
+[data-theme="dark"] .jdbrange-row:hover { background: rgba(255, 255, 255, 0.05); }
+.jdbrange-lbl { font-weight: 600; }
+.jdbrange-lbl em { font-style: normal; font-size: 11px; color: var(--text-3); margin-left: 6px; }
+.jdbrange-exp { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.jdbrange-up { color: #d70015; font-weight: 600; font-variant-numeric: tabular-nums; }
+.jdbrange-down { color: var(--text-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+[data-theme="dark"] .jdbrange-up { color: #ff6961; }
+@media (max-width: 600px) {
+  .jdbrange-head, .jdbrange-row { grid-template-columns: 1.1fr 36px 46px 1.3fr 36px 42px; gap: 4px; padding: 5px 2px; font-size: 12px; }
+  .jdbrange-lbl em { display: none; }
+}
 @media (max-width: 600px) {
   .jdbnum-head, .jdbnum-row { grid-template-columns: 32px 40px 44px 52px 1fr; gap: 4px; padding: 5px 2px; font-size: 12px; }
 }
