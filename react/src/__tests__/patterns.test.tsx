@@ -9,7 +9,6 @@ import { ShareRisk } from '../components/ShareRisk';
 import { ShapeScore } from '../components/ShapeScore';
 
 const history = JSON.parse(readFileSync(join(process.cwd(), '..', 'history_full.json'), 'utf8'));
-const payouts = JSON.parse(readFileSync(join(process.cwd(), '..', 'payouts.json'), 'utf8'));
 
 describe('popularPatterns 圖案偵測', () => {
   it('等差序列: 3,9,15,21 公差 6', () => {
