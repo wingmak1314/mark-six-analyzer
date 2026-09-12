@@ -86,5 +86,11 @@ describe('金多寶 tab', () => {
     expect([...rgs].map(r => m(r, 4))).toEqual([10, 10, 10, 10, 9].map(sz => Math.round(N * 7 * sz / 49)));
     // 區間合計 = 49 號碼表合計 (同一個總數)
     expect(rTot.reduce((a, b) => a + b, 0)).toBe(totals.reduce((a, b) => a + b, 0));
+
+    // 標題/說明文字要跟期數自動更新 (唔可以寫死 151)
+    const body = document.body.textContent || '';
+    expect(body).toContain(`金多寶 AI 15 字（基於 ${N} 期金多寶數據）`);
+    expect(body).toContain(`金多寶歷史（${N} 期 · 2005-2026）`);
+    expect(body).toContain(`49 個號碼開出次數（${N} 期金多寶）`);
   }, 30000);
 });

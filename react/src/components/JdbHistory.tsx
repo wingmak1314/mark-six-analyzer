@@ -66,7 +66,13 @@ export function JdbHistory() {
       for (let n = a; n <= b; n++) { m += mcnt.get(n) || 0; s += (cnt.get(n) || 0) - (mcnt.get(n) || 0); }
       return { a, b, size: b - a + 1, main: m, sp: s, total: m + s, exp: data.length * 7 * (b - a + 1) / 49 };
     });
-    return { oddPct: Math.round(odd / totalMain * 100), smallPct: Math.round(small / totalMain * 100), total: data.length, all, ranges, exp: data.length * 7 / 49 };
+    // 卡方檢定 + 區間最大差距 + 特別號最大值 — 全部由數據即時計, 所以新開一期會自動更新
+    const e49 = data.length * 7 / 49;
+    const chi49 = all.reduce((s, r) => s + (r.count - e49) ** 2 / e49, 0);
+    const chiRg = ranges.reduce((s, r) => s + (r.total - r.exp) ** 2 / r.exp, 0);
+    const spMax = Math.max(...all.map(r => r.sp));
+    const rgDev = Math.round(Math.max(...ranges.map(r => Math.abs(r.total - r.exp))));
+    return { oddPct: Math.round(odd / totalMain * 100), smallPct: Math.round(small / totalMain * 100), total: data.length, all, ranges, exp: e49, chi49, chiRg, spMax, rgDev };
   }, [data]);
 
   if (isLoading) return <div className="loading"><div className="spinner" /><div>🔄 載入金多寶數據…</div></div>;
@@ -88,9 +94,9 @@ export function JdbHistory() {
             <span>特別號建議：{pred.p.special}（{pred.p.special_reason}）</span>
           </div>
           <Note label="📖 點解揀呢 15 個？">
-            用同一套 AI 引擎（頻率 + 共現 + 遺漏 + 近期趨勢 + 結構平衡），但數據源換成晒歷年 151 期金多寶攪珠 — 即係「金多寶先會開嘅號碼」統計，同平時每期六合彩唔同。⚠️ 每注中頭獎機率一樣係 1/13,983,816，統計唔會提高中獎率，只係揀號碼嘅參考角度唔同。
+            用同一套 AI 引擎（頻率 + 共現 + 遺漏 + 近期趨勢 + 結構平衡），但數據源換成晒歷年 {stats!.total} 期金多寶攪珠 — 即係「金多寶先會開嘅號碼」統計，同平時每期六合彩唔同。⚠️ 每注中頭獎機率一樣係 1/13,983,816，統計唔會提高中獎率，只係揀號碼嘅參考角度唔同。
             <br /><br />
-            ⚠️ 特別號點解揀 10：佢真係 151 期金多寶入面做得最多特別號（7 次，第二位 13／36／1／47 各 6 次）。但呢個「最旺」係隨機波動 — 蒙地卡羅模擬 151 期純隨機攪珠，出現某號 ≥7 次嘅機率係 87%（最大值中位數就係 7 次），χ²=42.7（df=48）完全通過。即係話：10 冇特別易開，只係佢咁啱排第一。
+            ⚠️ 特別號建議 {pred.p.special}：佢真係 {stats!.total} 期金多寶入面做得最多特別號（{stats!.spMax} 次）。但呢個「最旺」係隨機波動 — 卡方檢定 χ²={stats!.chi49.toFixed(1)}（df=48）完全通過隨機。即係話：{pred.p.special} 冇特別易開，只係佢咁啱排第一。
           </Note>
         </Card>
       )}
@@ -152,7 +158,7 @@ export function JdbHistory() {
               );
             })}
             <Note label="📖 點睇呢個表？">
-              151 期金多寶每一期開 7 個波（6 主號 + 1 特別號），所以每個號碼嘅期望開出次數 = 151 × 7 ÷ 49 ≈ <b>21.6 次</b>。全 49 個號碼嘅分佈經卡方檢定（χ²=42.7，自由度 48）完全符合隨機 —「邊個開最多」只係隨機波動，唔代表下期會開。🎯 標住嘅係 AI 15 字推薦（由金多寶歷史 + 波色／單雙／大細平衡揀出），所以會有「更旺但冇入選」嘅情況，例如 10 號（28 次並列第一）因為要做特別號（7 次）先冇入。區間分佈同理：五段最大差距 ±19 個波，卡方檢定 χ²=3.88（自由度 4，p≈0.42）→ 亦係隨機波動，冇一段特別旺。
+              {stats.total} 期金多寶每一期開 7 個波（6 主號 + 1 特別號），所以每個號碼嘅期望開出次數 = {stats.total} × 7 ÷ 49 ≈ <b>{stats.exp.toFixed(1)} 次</b>。全 49 個號碼嘅分佈經卡方檢定（χ²={stats.chi49.toFixed(1)}，自由度 48）完全符合隨機 —「邊個開最多」只係隨機波動，唔代表下期會開。🎯 標住嘅係 AI 15 字推薦（由金多寶歷史 + 波色／單雙／大細平衡揀出），所以會有「更旺但冇入選」嘅情況（例如做特別號多嘅號碼）。區間分佈同理：五段最大差距 ±{stats.rgDev} 個波，卡方檢定 χ²={stats.chiRg.toFixed(2)}（自由度 4）→ 亦係隨機波動，冇一段特別旺。
             </Note>
           </div>
         )}
