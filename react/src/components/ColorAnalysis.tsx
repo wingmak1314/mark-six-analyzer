@@ -44,6 +44,7 @@ export function ColorAnalysis({ history }: Props) {
   const [year, setYear] = useState('all');
   const [query, setQuery] = useState('');
   const [includeSpecial, setIncludeSpecial] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   const years = useMemo(() => {
     return [...new Set(history.map(d => `20${d.draw.split('/')[0]}`))]
@@ -95,6 +96,9 @@ export function ColorAnalysis({ history }: Props) {
         || d.date.includes(q);
     });
   }, [history, year, query]);
+
+  // 預設只 render 最近 100 期，避免一次過 render 3,427 期（每期 7 個波）拖慢手機
+  const visible = showAll ? filtered : filtered.slice(0, 100);
 
   const totalMain = history.length * 6;
   const totalSpecial = history.length;
@@ -187,11 +191,11 @@ export function ColorAnalysis({ history }: Props) {
             {years.map(y => <option key={y} value={y}>{y} 年</option>)}
           </select>
           <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜尋期號 / 日期（例如 083）" />
-          <span className="filter-count">顯示 {filtered.length.toLocaleString()} / {history.length.toLocaleString()} 期</span>
+          <span className="filter-count">顯示 {visible.length.toLocaleString()} / {filtered.length.toLocaleString()} 期{year === 'all' && !query && filtered.length > 100 && !showAll ? '（最近 100 期）' : ''}</span>
         </div>
         <div className="color-table color-draw-table">
           <div className="color-table-row color-table-head"><span>期號</span><span>日期</span><span>6 個主號碼（按開出次序）</span><span>特別號</span><span>主號碼比例</span></div>
-          {filtered.map(d => {
+          {visible.map(d => {
             const counts = countWaveColors(d.main);
             return (
               <div className="color-table-row" key={d.draw}>
@@ -205,8 +209,13 @@ export function ColorAnalysis({ history }: Props) {
           })}
           {!filtered.length && <div className="no-result">冇搵到符合嘅期數</div>}
         </div>
+        {!showAll && filtered.length > 100 && (
+          <button className="load-more" onClick={() => setShowAll(true)}>
+            顯示全部 {filtered.length.toLocaleString()} 期
+          </button>
+        )}
         <div className="gen-note">
-          💡 每行係一個真實開獎期：彩色波波 = 該號碼官方波色；黃色邊框 = 特別號。呢張表預設顯示全部歷史期數，唔會只截頭幾十期。
+          💡 每行係一個真實開獎期：彩色波波 = 該號碼官方波色；黃色邊框 = 特別號。預設顯示最近 100 期，撳「顯示全部」睇晒全部歷史。
           <br />⚠️ 波色係號碼分類，唔會改變中獎機率；每一期獨立隨機。
         </div>
       </Card>

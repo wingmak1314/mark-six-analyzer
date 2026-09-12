@@ -4,6 +4,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import App from '../App';
+import { ColorAnalysis } from '../components/ColorAnalysis';
 import { WAVE_COLORS, WAVE_ORDER, isValidWaveMap, waveColor, wavePattern, countWaveColors } from '../lib/colors';
 
 const history = JSON.parse(readFileSync(join(process.cwd(), '..', 'history_full.json'), 'utf8'));
@@ -101,4 +102,34 @@ describe('波色分析 tab', () => {
     const specials = document.querySelectorAll('.wave-special');
     expect(specials.length).toBeGreaterThan(10);
   }, 20000);
+});
+
+// ── 逐期表分頁（防一次過 render 3,427 期拖慢手機）──
+const _mk = (i: number): any => ({
+  draw: `${String(26 - Math.floor(i / 150)).padStart(2, '0')}/${String(((i * 7) % 150) + 1).padStart(3, '0')}`,
+  date: '01/01/2026',
+  main: [((i * 3) % 49) + 1, ((i * 11) % 49) + 1, ((i * 13) % 49) + 1, ((i * 17) % 49) + 1, ((i * 19) % 49) + 1, ((i * 23) % 49) + 1],
+  special: ((i * 29) % 49) + 1,
+});
+const _history = Array.from({ length: 384 }, (_, i) => _mk(i));
+
+describe('波色逐期表 — 預設 100 期分頁', () => {
+  it('預設只 render 100 期 + 有「顯示全部」掣', () => {
+    const { container } = render(<ColorAnalysis history={_history} />);
+    expect(container.querySelectorAll('.color-draw-table .color-table-row').length).toBe(101);
+    expect(container.textContent).toContain('顯示 100 / 384 期');
+    expect(container.querySelector('.load-more')).toBeTruthy();
+  });
+
+  it('撳「顯示全部」出晒 384 期', () => {
+    const { container } = render(<ColorAnalysis history={_history} />);
+    fireEvent.click(container.querySelector('.load-more') as HTMLButtonElement);
+    expect(container.querySelectorAll('.color-draw-table .color-table-row').length).toBe(385);
+  });
+
+  it('撳年份 filter 唔會爆 render', () => {
+    const { container } = render(<ColorAnalysis history={_history} />);
+    fireEvent.change(container.querySelector('.color-filters select') as HTMLSelectElement, { target: { value: '26' } });
+    expect(container.querySelectorAll('.color-draw-table .color-table-row').length).toBeLessThanOrEqual(101);
+  });
 });
