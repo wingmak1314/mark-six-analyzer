@@ -8,6 +8,8 @@ import App from '../App';
 
 const history = JSON.parse(readFileSync(join(process.cwd(), '..', 'history_full.json'), 'utf8'));
 const jdb = JSON.parse(readFileSync(join(process.cwd(), '..', 'jdb.json'), 'utf8'));
+const jdbDraws: any[] = jdb.draws ?? jdb;
+const N = jdbDraws.length;   // 期數會隨新金多寶增加, 所以預期值一律由 N 推導, 唔會因為新開一期就紅
 
 beforeAll(() => {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
@@ -57,26 +59,32 @@ describe('金多寶 tab', () => {
 
     const num = (r: Element) => Number((r.querySelector('.jdbnum-total')?.textContent || '').match(/^\d+/)?.[0] || 0);
     const totals = [...rows].map(num);
-    expect(totals[0]).toBe(28);                        // 最旺 = 28 次
-    expect(totals[48]).toBe(12);                       // 最靜 = 12 次
-    expect(totals.reduce((a, b) => a + b, 0)).toBe(151 * 7);   // 151 期 × 7 個波
+    expect(totals[0]).toBe(Math.max(...totals));               // 第一行 = 最旺
+    expect(totals[48]).toBe(Math.min(...totals));              // 最後一行 = 最靜
+    expect(totals.reduce((a, b) => a + b, 0)).toBe(N * 7);     // 期數 × 7 個波
     expect([...totals].sort((a, b) => b - a)).toEqual(totals); // 由多到少排序
-    // 特別號 10 號: 主號 21 + 特別號 7 = 28
-    const row10 = [...rows].find(r => r.querySelector('.ball')?.textContent === '10');
-    expect(row10?.textContent).toContain('21');
-    expect(row10?.textContent).toContain('7');
+    // 每行 主號 + 特別號 = 合計, 而且 49 行特別號加起 = 期數
+    const cell = (r: Element, i: number) => Number(r.children[i].textContent?.match(/^\d+/)?.[0] || 0);
+    const mains = [...rows].map(r => cell(r, 2));
+    const sps = [...rows].map(r => cell(r, 3));
+    expect(mains.reduce((a, b) => a + b, 0)).toBe(N * 6);
+    expect(sps.reduce((a, b) => a + b, 0)).toBe(N);
+    rows.forEach((r, i) => expect(mains[i] + sps[i]).toBe(totals[i]));
 
     // 區間表: 5 段 (1-10 / 11-20 / 21-30 / 31-40 / 41-49)
     const rgs = document.querySelectorAll('.jdbrange-row');
     expect(rgs.length).toBe(5);
-    expect(screen.getByText('41-49')).toBeTruthy();
+    ['1-10', '11-20', '21-30', '31-40', '41-49'].forEach(t => expect(screen.getByText(t)).toBeTruthy());
     const m = (r: Element, i: number) => Number(r.children[i].textContent?.match(/^\d+/)?.[0] || 0);
-    const mains = [...rgs].map(r => m(r, 1));
-    expect(mains).toEqual([169, 195, 194, 170, 178]);      // 主號逐段
-    expect(mains.reduce((a, b) => a + b, 0)).toBe(906);     // = 151 × 6
-    const sps = [...rgs].map(r => m(r, 2));
-    expect(sps).toEqual([36, 32, 26, 27, 30]);             // 特別號逐段
-    expect(sps.reduce((a, b) => a + b, 0)).toBe(151);
-    expect([...rgs].map(r => m(r, 4))).toEqual([216, 216, 216, 216, 194]);   // 期望
+    const rMain = [...rgs].map(r => m(r, 1));
+    const rSp = [...rgs].map(r => m(r, 2));
+    const rTot = [...rgs].map(r => m(r, 3));
+    expect(rMain.reduce((a, b) => a + b, 0)).toBe(N * 6);   // 逐段主號加起 = 期數 × 6
+    expect(rSp.reduce((a, b) => a + b, 0)).toBe(N);         // 逐段特別號加起 = 期數
+    expect(rTot).toEqual(rMain.map((v, i) => v + rSp[i]));  // 合計 = 主號 + 特別號
+    // 期望 = 期數 × 7 × 段內號碼數 ÷ 49
+    expect([...rgs].map(r => m(r, 4))).toEqual([10, 10, 10, 10, 9].map(sz => Math.round(N * 7 * sz / 49)));
+    // 區間合計 = 49 號碼表合計 (同一個總數)
+    expect(rTot.reduce((a, b) => a + b, 0)).toBe(totals.reduce((a, b) => a + b, 0));
   }, 30000);
 });

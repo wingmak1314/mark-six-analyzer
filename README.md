@@ -37,6 +37,10 @@ assets/ index.html sw.js ...  # CI build 產物 (自動生成, 唔好手改)
 - **數據**: GitHub Actions (`update-data.yml`) 每日自動更新 — 開獎日(二四六)21:35 即時 + 每日 21:50/23:30 保險重試,抓 lottery.hk,超時自動 fallback HKJC 官方 GraphQL;同日自動增量 append 最新派彩到 `payouts.json`。
 - **分析**: 全部喺瀏覽器做 (`analyzeStatic`),冇任何 API server,數據唔會離開用戶裝置。
 
+### 一鍵更新數據（Windows，零 token）
+
+雙擊 repo root 嘅 **`更新金多寶.bat`** → 由 HKJC 官方 API 拉最新開獎／金多寶／派彩，有新數據自動 `commit` + `push`，網站幾分鐘後更新。正常情況乜都唔使做（GitHub Actions 每小時自動更新一次），呢個 script 係想「即刻」見到新期數（例如開完金多寶當晚）先跑。
+
 ## 本地開發
 
 ```bash
