@@ -1,6 +1,6 @@
 // 大眾圖案偵測 (popularPatterns) + ShareRisk/ShapeScore 新功能 jsdom 驗證
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { popularPatterns } from '../lib/quant';
