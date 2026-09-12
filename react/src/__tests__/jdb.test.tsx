@@ -40,4 +40,30 @@ describe('金多寶 tab', () => {
     expect(odd).toBeGreaterThanOrEqual(3); expect(odd).toBeLessThanOrEqual(12);
     expect(small).toBeGreaterThanOrEqual(3); expect(small).toBeLessThanOrEqual(12);
   }, 30000);
+
+  it('49 號碼開出次數表: 預設頭 15 行, 撳「顯示全部」→ 49 行, 合計總數 = 1057', async () => {
+    render(<App />);
+    const btn = await screen.findByText('🏆 金多寶', {}, { timeout: 10000 });
+    fireEvent.click(btn);
+    expect(await screen.findByText('合計（開出次數）', {}, { timeout: 10000 })).toBeTruthy();
+
+    let rows = document.querySelectorAll('.jdbnum-row');
+    expect(rows.length).toBe(15);                      // 預設只顯示頭 15
+
+    const more = await screen.findByText(/顯示全部 49 個號碼/, {}, { timeout: 10000 });
+    fireEvent.click(more);
+    rows = document.querySelectorAll('.jdbnum-row');
+    expect(rows.length).toBe(49);                      // 撳完見到全部
+
+    const num = (r: Element) => Number((r.querySelector('.jdbnum-total')?.textContent || '').match(/^\d+/)?.[0] || 0);
+    const totals = [...rows].map(num);
+    expect(totals[0]).toBe(28);                        // 最旺 = 28 次
+    expect(totals[48]).toBe(12);                       // 最靜 = 12 次
+    expect(totals.reduce((a, b) => a + b, 0)).toBe(151 * 7);   // 151 期 × 7 個波
+    expect([...totals].sort((a, b) => b - a)).toEqual(totals); // 由多到少排序
+    // 特別號 10 號: 主號 21 + 特別號 7 = 28
+    const row10 = [...rows].find(r => r.querySelector('.ball')?.textContent === '10');
+    expect(row10?.textContent).toContain('21');
+    expect(row10?.textContent).toContain('7');
+  }, 30000);
 });
