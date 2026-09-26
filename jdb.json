@@ -1,7 +1,22 @@
 {
  "source": "HKJC GraphQL (snowballCode)",
- "count": 151,
+ "count": 152,
  "draws": [
+  {
+   "draw": "26/104",
+   "date": "26/09/2026",
+   "main": [
+    4,
+    28,
+    31,
+    44,
+    47,
+    48
+   ],
+   "special": 19,
+   "code": "MAF",
+   "name": "中秋金多寶"
+  },
   {
    "draw": "26/096",
    "date": "05/09/2026",
