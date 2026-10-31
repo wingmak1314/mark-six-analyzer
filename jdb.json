@@ -1,7 +1,22 @@
 {
  "source": "HKJC GraphQL (snowballCode)",
- "count": 152,
+ "count": 153,
  "draws": [
+  {
+   "draw": "26/116",
+   "date": "31/10/2026",
+   "main": [
+    10,
+    11,
+    19,
+    27,
+    37,
+    43
+   ],
+   "special": 8,
+   "code": "STE",
+   "name": "萬聖節金多寶"
+  },
   {
    "draw": "26/104",
    "date": "26/09/2026",
