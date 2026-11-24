@@ -1,7 +1,22 @@
 {
  "source": "HKJC GraphQL (snowballCode)",
- "count": 153,
+ "count": 154,
  "draws": [
+  {
+   "draw": "26/124",
+   "date": "24/11/2026",
+   "main": [
+    1,
+    20,
+    26,
+    28,
+    35,
+    41
+   ],
+   "special": 36,
+   "code": "TUS",
+   "name": "幸運二金多寶"
+  },
   {
    "draw": "26/116",
    "date": "31/10/2026",
